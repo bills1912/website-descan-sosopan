@@ -1,0 +1,1122 @@
+.page-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 8rem 0 4rem;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.page-header::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 200" fill="rgba(255,255,255,0.1)"><polygon points="0,0 500,100 1000,0 1000,200 0,200"/></svg>');
+    background-size: 100% 100%;
+    animation: wave 12s ease-in-out infinite;
+}
+
+@keyframes wave {
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+
+    50% {
+        transform: translateX(-30px);
+    }
+}
+
+/* Interactive Org Chart Container */
+.org-chart-section {
+    padding: 8rem 0;
+    background: radial-gradient(
+            circle at 30% 50%,
+            rgba(102, 126, 234, 0.03) 0%,
+            transparent 50%
+        ),
+        radial-gradient(
+            circle at 70% 50%,
+            rgba(118, 75, 162, 0.03) 0%,
+            transparent 50%
+        ),
+        #f8f9fb;
+    position: relative;
+    overflow: visible;
+    min-height: auto;
+    z-index: 1;
+}
+
+.org-chart-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 2rem;
+    position: relative;
+    overflow: visible;
+    min-height: auto;
+    /* Remove fixed height */
+}
+
+.org-chart {
+    position: relative;
+    min-height: 800px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6rem;
+    isolation: isolate;
+    padding-bottom: 4rem;
+    /* Add bottom padding */
+}
+
+/* SVG Lines Container */
+.connections-svg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.connection-line {
+    stroke: #e1e8f0;
+    stroke-width: 2;
+    fill: none;
+    opacity: 0;
+    transition: all 0.8s ease;
+    stroke-dasharray: 1000;
+    stroke-dashoffset: 1000;
+}
+
+.connection-line.active {
+    opacity: 1;
+    stroke-dashoffset: 0;
+}
+
+.connection-line.highlight {
+    stroke: #667eea;
+    stroke-width: 3;
+    opacity: 1;
+    animation: pulse-line 2s infinite;
+}
+
+@keyframes pulse-line {
+    0%,
+    100% {
+        opacity: 0.8;
+    }
+
+    50% {
+        opacity: 1;
+    }
+}
+
+/* Organization Levels */
+.org-level {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8rem;
+    position: relative;
+    z-index: 3;
+    /* Higher than org-chart */
+    width: 100%;
+    isolation: isolate;
+}
+
+.org-level-1 {
+    gap: 0;
+    z-index: 4;
+    /* Highest for top level */
+    margin-top: 1rem;
+    /* Additional space from description */
+}
+
+.org-level-2 {
+    gap: 12rem;
+    z-index: 3;
+}
+
+.org-level-3 {
+    gap: 6rem;
+    flex-wrap: wrap;
+    z-index: 3;
+}
+
+.org-level-4 {
+    gap: 4rem;
+    flex-wrap: wrap;
+    z-index: 3;
+}
+
+/* Person Circle */
+.person-circle {
+    position: relative;
+    cursor: pointer;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    z-index: 5;
+    /* Higher than all levels */
+}
+
+.person-avatar {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.5rem;
+    color: white;
+    box-shadow: 0 10px 30px rgba(102, 126, 234, 0.2);
+    transition: all 0.4s ease;
+    position: relative;
+    overflow: hidden;
+    z-index: 6;
+    /* Ensure avatar is always visible */
+}
+
+.person-avatar::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+        45deg,
+        transparent 30%,
+        rgba(255, 255, 255, 0.2) 50%,
+        transparent 70%
+    );
+    transform: translateX(-100%);
+    transition: transform 0.6s ease;
+}
+
+.person-circle:hover .person-avatar::before {
+    transform: translateX(100%);
+}
+
+.person-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+}
+
+/* Special styling for leadership */
+.kepala-desa .person-avatar {
+    width: 140px;
+    height: 140px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    box-shadow: 0 15px 40px rgba(102, 126, 234, 0.3);
+    animation: gentle-pulse 3s ease-in-out infinite;
+    z-index: 7;
+    /* Highest for kepala desa */
+}
+
+.wakil-kepala .person-avatar {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.sekretaris .person-avatar {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+}
+
+@keyframes gentle-pulse {
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.05);
+    }
+}
+
+.person-circle:hover {
+    transform: translateY(-10px);
+    z-index: 1000;
+    /* Highest when hovered */
+}
+
+.person-circle:hover .person-avatar {
+    box-shadow: 0 20px 50px rgba(102, 126, 234, 0.4);
+    transform: scale(1.1);
+}
+
+/* Hover Info Card - Simplified and Fixed */
+.person-info-card {
+    position: absolute;
+    left: 160px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: white;
+    padding: 2rem;
+    border-radius: 20px;
+    box-shadow: 0 25px 80px rgba(0, 0, 0, 0.25);
+    min-width: 320px;
+    max-width: 380px;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-50%) translateX(-20px) scale(0.9);
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    z-index: 999;
+    /* Very high for info cards */
+    border: 1px solid rgba(102, 126, 234, 0.1);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    pointer-events: none;
+}
+
+.person-info-card::before {
+    content: "";
+    position: absolute;
+    left: -10px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 0;
+    height: 0;
+    border-top: 10px solid transparent;
+    border-bottom: 10px solid transparent;
+    border-right: 10px solid white;
+    z-index: 100000;
+    filter: drop-shadow(-1px 0 1px rgba(0, 0, 0, 0.1));
+}
+
+.person-circle:hover .person-info-card {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(-50%) translateX(0) scale(1);
+    z-index: 999;
+    /* Consistent high z-index */
+    pointer-events: auto;
+}
+
+/* Ensure person circle has higher z-index when hovered */
+.person-circle {
+    position: relative;
+    cursor: pointer;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    z-index: 1;
+}
+
+.person-circle:hover {
+    transform: translateY(-10px);
+    z-index: 1000;
+    /* Higher when hovered */
+}
+
+.person-circle:hover .person-info-card {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(-50%) translateX(0) scale(1);
+    z-index: 999;
+    /* Consistent z-index */
+    pointer-events: auto;
+}
+
+.info-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #f0f4f8;
+}
+
+.info-avatar {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.5rem;
+}
+
+.info-details h3 {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #2c3e50;
+    margin-bottom: 0.3rem;
+    line-height: 1.2;
+}
+
+.info-details .position {
+    font-size: 1rem;
+    color: #667eea;
+    font-weight: 600;
+}
+
+.info-content {
+    color: #5a6c7d;
+    line-height: 1.6;
+    margin-bottom: 1.5rem;
+}
+
+.info-contact {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.contact-item {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    font-size: 0.9rem;
+    color: #5a6c7d;
+}
+
+.contact-item i {
+    width: 16px;
+    color: #667eea;
+}
+
+/* Position Labels */
+.position-label {
+    position: absolute;
+    bottom: -40px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: white;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #2c3e50;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    white-space: nowrap;
+    opacity: 0;
+    transition: all 0.3s ease;
+    z-index: 8;
+    /* High z-index for labels */
+}
+
+.person-circle:hover .position-label {
+    opacity: 1;
+    transform: translateX(-50%) translateY(-5px);
+    z-index: 8;
+}
+
+/* Vision Mission Section */
+/* Vision Mission Section - Improved */
+.vision-mission {
+    background: white;
+    padding: 5rem 0;
+}
+
+.vm-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4rem;
+    margin-top: 3rem;
+    align-items: start;
+    /* Memastikan kedua card sejajar di atas */
+}
+
+.vm-card {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    padding: 3rem;
+    border-radius: 20px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    height: auto;
+    min-height: 400px;
+    /* Tinggi minimum yang sama */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    /* Konten di tengah vertikal */
+}
+
+.vm-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.1);
+}
+
+.vm-card::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.vm-icon {
+    width: 80px;
+    height: 80px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 2rem;
+    color: white;
+    font-size: 2rem;
+    flex-shrink: 0;
+    /* Icon tidak mengecil */
+}
+
+.vm-title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #2c3e50;
+    margin-bottom: 1.5rem;
+    flex-shrink: 0;
+    /* Title tidak mengecil */
+}
+
+/* Perbaikan khusus untuk konten Visi */
+.vm-card:first-child .vm-content {
+    font-size: 1.1rem;
+    /* Sedikit lebih besar untuk visi */
+    line-height: 1.8;
+    color: #555;
+    margin: auto;
+    font-weight: 500;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-grow: 1;
+    /* Mengisi ruang yang tersedia */
+}
+
+/* Perbaikan khusus untuk konten Misi */
+.vm-card:last-child .vm-content {
+    font-size: 0.95rem;
+    line-height: 1.7;
+    color: #666;
+    text-align: left;
+    /* Rata kiri untuk list misi */
+    flex-grow: 1;
+    /* Mengisi ruang yang tersedia */
+}
+
+/* Styling untuk list misi */
+.vm-card:last-child .vm-content {
+    counter-reset: mission-counter;
+}
+
+.mission-item {
+    counter-increment: mission-counter;
+    margin-bottom: 1rem;
+    padding-left: 2rem;
+    position: relative;
+    display: block;
+}
+
+.mission-item::before {
+    content: counter(mission-counter);
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 24px;
+    height: 24px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    font-weight: bold;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .vm-grid {
+        grid-template-columns: 1fr;
+        gap: 2rem;
+    }
+
+    .vm-card {
+        padding: 2rem;
+        min-height: 300px;
+    }
+
+    .vm-title {
+        font-size: 1.8rem;
+    }
+
+    .vm-card:first-child .vm-content {
+        font-size: 1rem;
+    }
+
+    .vm-card:last-child .vm-content {
+        font-size: 0.9rem;
+    }
+}
+
+@media (max-width: 640px) {
+    .vm-card {
+        padding: 1.5rem;
+        min-height: 250px;
+    }
+
+    .vm-icon {
+        width: 60px;
+        height: 60px;
+        font-size: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .vm-title {
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+    }
+}
+
+/* Floating Particles Animation */
+.floating-particles {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    overflow: hidden;
+    z-index: -1;
+    /* Behind everything */
+}
+
+.particle {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    background: rgba(102, 126, 234, 0.3);
+    border-radius: 50%;
+    animation: float-particle 15s linear infinite;
+}
+
+@keyframes float-particle {
+    0% {
+        transform: translateY(100vh) translateX(0);
+        opacity: 0;
+    }
+
+    10% {
+        opacity: 1;
+    }
+
+    90% {
+        opacity: 1;
+    }
+
+    100% {
+        transform: translateY(-100px) translateX(100px);
+        opacity: 0;
+    }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .org-level-2 {
+        gap: 8rem;
+    }
+
+    .org-level-3 {
+        gap: 4rem;
+    }
+
+    .org-level-4 {
+        gap: 3rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .org-chart {
+        gap: 4rem;
+        padding-bottom: 6rem;
+        margin-top: 1rem;
+        /* Reduced margin on mobile */
+    }
+
+    .org-level {
+        flex-direction: column;
+        gap: 3rem !important;
+    }
+
+    .person-avatar {
+        width: 100px;
+        height: 100px;
+        font-size: 2rem;
+    }
+
+    .kepala-desa .person-avatar {
+        width: 120px;
+        height: 120px;
+    }
+
+    .person-info-card {
+        position: fixed;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%) scale(0.9);
+        max-width: 90vw;
+        z-index: 1001;
+        /* Higher on mobile */
+    }
+
+    .person-circle:hover .person-info-card {
+        transform: translate(-50%, -50%) scale(1);
+        z-index: 1001;
+    }
+
+    .person-info-card::before {
+        display: none;
+    }
+
+    .vm-grid {
+        grid-template-columns: 1fr;
+        gap: 2rem;
+    }
+
+    .vm-card {
+        padding: 2rem;
+    }
+}
+
+@media (max-width: 640px) {
+    .person-avatar {
+        width: 80px;
+        height: 80px;
+        font-size: 1.5rem;
+    }
+
+    .kepala-desa .person-avatar {
+        width: 100px;
+        height: 100px;
+    }
+
+    .person-info-card {
+        padding: 1.5rem;
+        min-width: 280px;
+    }
+}
+
+/* Tab Navigation Styles */
+.org-tabs-container {
+    margin-bottom: 4rem;
+    display: flex;
+    justify-content: center;
+}
+
+.org-tabs {
+    display: flex;
+    background: white;
+    border-radius: 15px;
+    padding: 8px;
+    box-shadow: 0 10px 30px rgba(102, 126, 234, 0.15);
+    gap: 5px;
+    flex-wrap: wrap;
+    justify-content: center;
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+.tab-button {
+    padding: 12px 24px;
+    border: none;
+    background: transparent;
+    color: #6c757d;
+    font-weight: 600;
+    font-size: 0.95rem;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    white-space: nowrap;
+    position: relative;
+    overflow: hidden;
+    min-width: 140px;
+}
+
+.tab-button::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    transition: left 0.3s ease;
+    z-index: -1;
+}
+
+.tab-button:hover {
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 20px rgba(102, 126, 234, 0.3);
+}
+
+.tab-button:hover::before {
+    left: 0;
+}
+
+.tab-button.active {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+}
+
+.tab-button.active::before {
+    left: 0;
+}
+
+/* Tab Content Positioning Fix */
+.tab-content {
+    display: none;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.5s ease;
+    position: relative;
+    width: 100%;
+    top: auto;
+    left: auto;
+    z-index: 1;
+    /* Base level */
+}
+
+.tab-content.active {
+    display: block;
+    opacity: 1;
+    transform: translateY(0);
+    animation: fadeInUp 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    position: relative;
+}
+
+@keyframes fadeInUp {
+    0% {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.org-chart-section::after {
+    content: "";
+    display: block;
+    height: 2rem;
+    clear: both;
+}
+
+/* Tab Labels with Icons */
+.tab-button i {
+    margin-right: 8px;
+    font-size: 0.9rem;
+}
+
+/* Active Tab Indicator */
+.tab-button.active::after {
+    content: "";
+    position: absolute;
+    bottom: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 6px;
+    height: 6px;
+    background: white;
+    border-radius: 50%;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Different colors for different tabs */
+.tab-button[data-tab="struktur-utama"].active,
+.tab-button[data-tab="struktur-utama"]:hover::before {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.tab-button[data-tab="struktur-bpd"].active,
+.tab-button[data-tab="struktur-bpd"]:hover::before {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.tab-button[data-tab="struktur-pkk"].active,
+.tab-button[data-tab="struktur-pkk"]:hover::before {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+}
+
+.tab-button[data-tab="struktur-karang-taruna"].active,
+.tab-button[data-tab="struktur-karang-taruna"]:hover::before {
+    background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+}
+
+.tab-button[data-tab="struktur-lpmd"].active,
+.tab-button[data-tab="struktur-lpmd"]:hover::before {
+    background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+}
+
+.tab-button[data-tab="struktur-lembaga-adat"].active,
+.tab-button[data-tab="struktur-lembaga-adat"]:hover::before {
+    background: linear-gradient(135deg, #fe3460 0%, #ff8b6b 100%);
+}
+
+/* Responsive Design for Tabs */
+@media (max-width: 768px) {
+    .org-tabs {
+        padding: 6px;
+        gap: 3px;
+        justify-content: flex-start;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+
+    .org-tabs::-webkit-scrollbar {
+        display: none;
+    }
+
+    .tab-button {
+        padding: 10px 16px;
+        font-size: 0.85rem;
+        min-width: 120px;
+        flex-shrink: 0;
+    }
+
+    .tab-button i {
+        margin-right: 6px;
+        font-size: 0.8rem;
+    }
+}
+
+@media (max-width: 640px) {
+    .org-tabs-container {
+        margin-bottom: 3rem;
+        padding: 0 1rem;
+    }
+
+    .tab-button {
+        padding: 8px 12px;
+        font-size: 0.8rem;
+        min-width: 100px;
+    }
+}
+
+/* Loading Animation for Tab Switch */
+.tab-content.loading {
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+.tab-content.loading .person-circle {
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0%,
+    100% {
+        opacity: 0.7;
+    }
+
+    50% {
+        opacity: 1;
+    }
+}
+
+/* Tab Content Spacing */
+.tab-content .org-chart {
+    margin-top: 0;
+    position: relative;
+    z-index: 1;
+}
+
+/* Smooth Transition Between Tabs */
+.org-chart-section {
+    min-height: 1000px;
+    position: relative;
+}
+
+.tab-content {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.tab-content:not(.active) {
+    pointer-events: none;
+}
+
+/* Tab Description */
+.tab-description {
+    text-align: center;
+    margin-bottom: 3rem;
+    /* Increased margin for more space */
+    padding: 1rem 2rem;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    max-width: 800px;
+    margin-left: auto;
+    margin-right: auto;
+    position: relative;
+    z-index: 1;
+    /* Lower z-index than person circles */
+    margin-bottom: 4rem;
+    /* Extra space before org chart */
+}
+
+.tab-description h3 {
+    color: #2c3e50;
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+.tab-description p {
+    color: #666;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    margin: 0;
+}
+
+@media (max-width: 768px) {
+    .tab-description {
+        padding: 0.8rem 1.5rem;
+        margin-bottom: 1.5rem;
+        /* Reduced margin on mobile */
+    }
+
+    .tab-description h3 {
+        font-size: 1.2rem;
+    }
+
+    .tab-description p {
+        font-size: 0.9rem;
+    }
+}
+
+/* Mobile backdrop z-index */
+.mobile-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+    z-index: 998;
+    /* Below info cards */
+}
+
+.mobile-backdrop.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Additional styles for better stacking */
+.org-chart {
+    position: relative;
+    min-height: 800px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6rem;
+    isolation: isolate;
+    padding-bottom: 4rem;
+    z-index: 2;
+    /* Higher than tab description */
+    margin-top: 2rem;
+    /* Add space from tab description */
+}
+
+.org-chart-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 2rem;
+    position: relative;
+    overflow: visible;
+    z-index: 1;
+}
+
+.org-chart-container::before {
+    content: "";
+    display: block;
+    height: 2rem;
+    /* Space between description and chart */
+}
+
+.org-chart-container::after {
+    content: "";
+    display: table;
+    clear: both;
+}
+
+/* Fix for section overlap */
+.org-chart-section + section,
+.org-chart-section + footer {
+    position: relative;
+    z-index: 1;
+    margin-top: 0;
+}
+
+/* Loading state fixes */
+.tab-content.loading {
+    opacity: 0.7;
+    pointer-events: none;
+    position: relative;
+    /* Ensure loading state doesn't break layout */
+}
+
+.tab-content.loading .person-circle {
+    animation: pulse 1s infinite;
+}
+
+/* Ensure all tab contents have proper spacing */
+.tab-content {
+    margin-bottom: 2rem;
+    padding-bottom: 2rem;
+}
+
+/* Connection lines container fix */
+.connections-svg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 0;
+    /* Behind everything */
+}
+
+/* Vision Mission section spacing */
+.vision-mission {
+    background: white;
+    padding: 5rem 0;
+    position: relative;
+    z-index: 1;
+}
+
+/* Page header positioning */
+.page-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 8rem 0 4rem;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+    z-index: 1;
+}
