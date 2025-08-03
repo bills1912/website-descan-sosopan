@@ -79,7 +79,10 @@ class AnggotaOrganisasiDesaRelationManager extends RelationManager
                     ->image()
                     ->avatar()
                     ->imageEditor()
-                    ->circleCropper(),
+                    ->circleCropper()
+                    ->disk('public')
+                    ->directory('assets')
+                    ->visibility('public'),
             ]);
     }
 
