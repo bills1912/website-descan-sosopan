@@ -145,7 +145,7 @@
                         <div class="category-icon">
                             <i class="fas fa-landmark"></i>
                         </div>
-                        <div class="category-title">Peraturan Daerah</div>
+                        <div class="category-title">Peraturan Daerah (DPRD)</div>
                         <div class="category-subtitle">Peraturan daerah setingkat kabupaten</div>
                     </div>
                     <ul class="document-list" id="perda-documents">
