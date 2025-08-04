@@ -124,7 +124,7 @@
                 </div>
 
                 <!-- Peraturan Gubernur -->
-                <div class="category-card" data-category="pergub">
+                <div class="category-card" data-category="peraturan-gubernur">
                     <div class="category-header">
                         <div class="document-count">Loading...</div>
                         <div class="category-icon">
@@ -154,7 +154,7 @@
                 </div>
 
                 <!-- Peraturan Bupati -->
-                <div class="category-card" data-category="perbup">
+                <div class="category-card" data-category="peraturan-bupati">
                     <div class="category-header">
                         <div class="document-count">Loading...</div>
                         <div class="category-icon">
@@ -169,7 +169,7 @@
                 </div>
 
                 <!-- Peraturan Desa -->
-                <div class="category-card" data-category="perdes">
+                <div class="category-card" data-category="peraturan-desa">
                     <div class="category-header">
                         <div class="document-count">Loading...</div>
                         <div class="category-icon">
@@ -184,7 +184,7 @@
                 </div>
 
                 <!-- Keputusan Kepala Desa -->
-                <div class="category-card" data-category="kades">
+                <div class="category-card" data-category="keputusan-kepala-desa">
                     <div class="category-header">
                         <div class="document-count">Loading...</div>
                         <div class="category-icon">
