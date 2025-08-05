@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\PageRouting;
 use App\Http\Controllers\JDIHController;
+use App\Http\Controllers\ReportPublicationController;
 
 Route::get('/', [PageRouting::class, 'halamanUtama'])->name('home');
 
@@ -47,6 +48,28 @@ Route::get('/download/apbdes/excel/{year}', [PageRouting::class, 'downloadAPBDes
 
 // Daftar Data Route
 Route::get('/daftar-data', [PageRouting::class, 'daftarData'])->name('daftar-data');
+
+// API routes untuk data kategori
+Route::get('/api/data/{category}', [PageRouting::class, 'getDataByCategory'])->name('api.data.category');
+Route::get('/api/data/{category}/export/{format}', [PageRouting::class, 'exportDataByCategory'])->name('api.data.export');
+
+// ===== REPORTS & PUBLICATIONS =====
+Route::prefix('reports')->name('reports.')->group(function () {
+    // Main reports endpoint dengan pagination dan filtering
+    Route::get('/', [ReportPublicationController::class, 'index'])->name('index');
+
+    // Featured reports
+    Route::get('/featured', [ReportPublicationController::class, 'featured'])->name('featured');
+
+    // Report details
+    Route::get('/{id}', [ReportPublicationController::class, 'show'])->name('show')->where('id', '[0-9]+');
+
+    // View report (untuk PDF bisa dibuka di browser)
+    Route::get('/{id}/view', [ReportPublicationController::class, 'view'])->name('view');
+
+    // Download report
+    Route::get('/{id}/download', [ReportPublicationController::class, 'download'])->name('download');
+});
 
 // Optional: Additional routes for API endpoints or admin functionality
 Route::prefix('api')->group(function () {

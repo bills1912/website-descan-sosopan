@@ -14,6 +14,8 @@ use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\APBDesExport;
 use App\Models\PimpinanOrganisasiDesa;
 use App\Models\AnggotaOrganisasiDesa;
+use App\Models\ReportPublicationData;
+use Illuminate\Http\JsonResponse;
 
 class PageRouting extends Controller
 {
@@ -178,7 +180,41 @@ class PageRouting extends Controller
 
     public function daftarData()
     {
-        return view('landingPage.components.daftarData');
+        try {
+            // Get featured reports for initial display
+            $featuredReports = ReportPublicationData::published()
+                ->featured()
+                ->recent(3)
+                ->get();
+
+            // Transform data for view
+            $featuredReports->transform(function ($report) {
+                return [
+                    'id' => $report->id,
+                    'title' => $report->judul,
+                    'description' => $report->deskripsi,
+                    'category_label' => $report->category_label,
+                    'publication_date' => $report->publication_date->format('d M Y'),
+                    'download_url' => $report->download_url,
+                    'view_url' => $report->view_url,
+                    'type_icon' => $report->type_icon,
+                    'file_type' => $report->file_type,
+                    'formatted_file_size' => $report->formatted_file_size,
+                    'download_count' => rand(10, 100), // Mock data since no field
+                ];
+            });
+
+            return view('landingPage.components.daftarData', [
+                'featuredReports' => $featuredReports
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error loading daftar data page: ' . $e->getMessage());
+
+            // Return view with empty collection if error occurs
+            return view('landingPage.components.daftarData', [
+                'featuredReports' => collect()
+            ]);
+        }
     }
 
     public function jdih()
@@ -589,5 +625,213 @@ class PageRouting extends Controller
                 'debug' => config('app.debug') ? $e->getTraceAsString() : null
             ], 500);
         }
+    }
+
+    /**
+     * Get sample data for different categories (API endpoint)
+     */
+    public function getDataByCategory(Request $request, $category): JsonResponse
+    {
+        try {
+            $page = $request->get('page', 1);
+            $perPage = $request->get('per_page', 10);
+            $search = $request->get('search', '');
+            $status = $request->get('status', '');
+
+            // Sample data generation based on category
+            $data = $this->generateSampleDataByCategory($category, $search, $status);
+
+            // Pagination
+            $total = count($data);
+            $offset = ($page - 1) * $perPage;
+            $paginatedData = array_slice($data, $offset, $perPage);
+
+            return response()->json([
+                'success' => true,
+                'data' => $paginatedData,
+                'pagination' => [
+                    'current_page' => (int) $page,
+                    'per_page' => (int) $perPage,
+                    'total' => $total,
+                    'last_page' => ceil($total / $perPage),
+                    'from' => $offset + 1,
+                    'to' => min($offset + $perPage, $total)
+                ]
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error fetching data by category: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan saat mengambil data'
+            ], 500);
+        }
+    }
+
+    /**
+     * Generate sample data by category
+     */
+    private function generateSampleDataByCategory($category, $search = '', $status = '')
+    {
+        $data = [];
+
+        switch ($category) {
+            case 'penduduk':
+                $data = [
+                    [
+                        'nik' => '3201234567890001',
+                        'nama' => 'Ahmad Suryanto',
+                        'kelamin' => 'Laki-laki',
+                        'lahir' => '15/08/1985',
+                        'alamat' => 'Dusun Maju RT 01/RW 01',
+                        'status' => 'active'
+                    ],
+                    [
+                        'nik' => '3201234567890002',
+                        'nama' => 'Siti Nurhaliza',
+                        'kelamin' => 'Perempuan',
+                        'lahir' => '22/12/1990',
+                        'alamat' => 'Dusun Sejahtera RT 02/RW 01',
+                        'status' => 'active'
+                    ],
+                    [
+                        'nik' => '3201234567890003',
+                        'nama' => 'Budi Hartono',
+                        'kelamin' => 'Laki-laki',
+                        'lahir' => '03/05/1978',
+                        'alamat' => 'Dusun Harmoni RT 01/RW 02',
+                        'status' => 'inactive'
+                    ],
+                    [
+                        'nik' => '3201234567890004',
+                        'nama' => 'Ratna Dewi',
+                        'kelamin' => 'Perempuan',
+                        'lahir' => '18/09/1993',
+                        'alamat' => 'Dusun Maju RT 03/RW 01',
+                        'status' => 'pending'
+                    ],
+                    [
+                        'nik' => '3201234567890005',
+                        'nama' => 'Eko Prasetyo',
+                        'kelamin' => 'Laki-laki',
+                        'lahir' => '27/01/1987',
+                        'alamat' => 'Dusun Sejahtera RT 01/RW 02',
+                        'status' => 'active'
+                    ]
+                ];
+                break;
+
+            case 'keuangan':
+                $data = [
+                    [
+                        'kode' => 'APB-001',
+                        'program' => 'Pembangunan Jalan',
+                        'anggaran' => 'Rp 150.000.000',
+                        'realisasi' => '87%',
+                        'status' => 'active'
+                    ],
+                    [
+                        'kode' => 'APB-002',
+                        'program' => 'Program Kesehatan',
+                        'anggaran' => 'Rp 75.000.000',
+                        'realisasi' => '95%',
+                        'status' => 'active'
+                    ],
+                    [
+                        'kode' => 'APB-003',
+                        'program' => 'Bantuan Sosial',
+                        'anggaran' => 'Rp 200.000.000',
+                        'realisasi' => '73%',
+                        'status' => 'pending'
+                    ]
+                ];
+                break;
+
+            default:
+                // Generate placeholder data for other categories
+                for ($i = 1; $i <= 25; $i++) {
+                    $data[] = [
+                        'id' => str_pad($i, 3, '0', STR_PAD_LEFT),
+                        'nama' => "Data " . ucfirst($category) . " {$i}",
+                        'kategori' => 'Kategori A',
+                        'tanggal' => date('d/m/Y', strtotime("-{$i} days")),
+                        'nilai' => 'Rp ' . number_format(rand(100000, 1000000), 0, ',', '.'),
+                        'status' => ['active', 'inactive', 'pending'][rand(0, 2)]
+                    ];
+                }
+                break;
+        }
+
+        // Apply filters
+        if (!empty($search)) {
+            $data = array_filter($data, function ($item) use ($search) {
+                return stripos(json_encode($item), $search) !== false;
+            });
+        }
+
+        if (!empty($status)) {
+            $data = array_filter($data, function ($item) use ($status) {
+                return $item['status'] === $status;
+            });
+        }
+
+        return array_values($data);
+    }
+
+    /**
+     * Export data by category
+     */
+    public function exportDataByCategory(Request $request, $category, $format)
+    {
+        try {
+            $data = $this->generateSampleDataByCategory($category);
+
+            if ($format === 'excel') {
+                $fileName = "data_{$category}_" . date('Y-m-d_H-i-s') . '.xlsx';
+
+                return Excel::download(new \App\Exports\DataCategoryExport($data, $category), $fileName);
+            } elseif ($format === 'pdf') {
+                $fileName = "data_{$category}_" . date('Y-m-d_H-i-s') . '.pdf';
+
+                // Create PDF using DomPDF
+                $pdf = PDF::loadView('pdf.data-category-template', [
+                    'data' => $data,
+                    'category' => $category,
+                    'title' => $this->getCategoryTitle($category),
+                    'generated_at' => now()->format('d/m/Y H:i:s')
+                ]);
+
+                $pdf->setPaper('A4', 'landscape');
+
+                return $pdf->download($fileName);
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Format export tidak valid'
+            ], 400);
+        } catch (\Exception $e) {
+            Log::error('Error exporting data: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan saat export data'
+            ], 500);
+        }
+    }
+
+    /**
+     * Get category title for display
+     */
+    private function getCategoryTitle($category): string
+    {
+        $titles = [
+            'penduduk' => 'Penduduk',
+            'keuangan' => 'Keuangan',
+            'pembangunan' => 'Pembangunan',
+            'kesehatan' => 'Kesehatan',
+            'pendidikan' => 'Pendidikan',
+            'ekonomi' => 'Ekonomi',
+        ];
+
+        return $titles[$category] ?? ucfirst($category);
     }
 }
