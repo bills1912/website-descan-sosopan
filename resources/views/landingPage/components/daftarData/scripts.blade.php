@@ -2,7 +2,7 @@
     // ===== GLOBAL VARIABLES =====
     let reportsData = {
         currentPage: 1,
-        perPage: 6,
+        perPage: 3, // Ubah dari 6 menjadi 3
         totalPages: 1,
         filters: {
             category: '',
@@ -95,6 +95,11 @@
             });
 
             const response = await fetch(`/reports?${params}`);
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
             const data = await response.json();
 
             if (data.success) {
@@ -112,24 +117,40 @@
         } finally {
             showLoading(false);
         }
-    };
-    const data = await response.json();
+    }
 
-    if (data.success) {
-        renderReports(data.data);
-        updatePaginationReports(data.pagination);
-        updateFiltersOptions(data.filters);
-        reportsData.currentPage = data.pagination.current_page;
-        reportsData.totalPages = data.pagination.last_page;
-    } else {
-        showNoReportsMessage();
-    }
-    } catch (error) {
-        console.error('Error loading reports:', error);
-        showNoReportsMessage();
-    } finally {
-        showLoading(false);
-    }
+    // Function untuk download yang konsisten dengan loading dan notifikasi
+    function downloadReportFile(reportId, hasFile = true) {
+        if (!hasFile) {
+            showFileNotAvailable();
+            return;
+        }
+
+        // Tampilkan loading pada tombol yang diklik
+        const btn = event?.target?.closest('.btn-download');
+        let originalText = '';
+
+        if (btn) {
+            originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Downloading...';
+            btn.disabled = true;
+        }
+
+        // Tampilkan notifikasi
+        showNotification('Download dimulai...', 'success');
+
+        // Redirect ke route simple download
+        setTimeout(() => {
+            window.location.href = `/simple-download/${reportId}`;
+
+            // Restore tombol setelah sedikit delay
+            if (btn) {
+                setTimeout(() => {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                }, 2000);
+            }
+        }, 500); // Delay sedikit untuk user experience
     }
 
     function renderReports(reports) {
@@ -146,7 +167,8 @@
         grid.style.display = 'grid';
         noReports.style.display = 'none';
 
-        grid.innerHTML = reports.map(report => `
+        grid.innerHTML = reports.map(report => {
+            return `
             <div class="report-card">
                 <div class="report-header">
                     <div class="report-title">${report.title}</div>
@@ -164,7 +186,7 @@
                     </div>
                     <div class="report-stat">
                         <i class="fas fa-file-alt"></i>
-                        <span>${report.file_size}</span>
+                        <span>${report.file_size || report.formatted_file_size}</span>
                     </div>
                     <div class="report-stat">
                         <i class="fas fa-download"></i>
@@ -172,17 +194,25 @@
                     </div>
                 </div>
                 <div class="report-actions">
-                    <button class="report-btn btn-download" onclick="downloadReport(${report.id})">
-                        <i class="fas fa-download"></i>
-                        Download
-                    </button>
+                    ${report.has_file !== false ? `
+                        <button class="report-btn btn-download" onclick="downloadReportFile(${report.id}, true)">
+                            <i class="fas fa-download"></i>
+                            Download
+                        </button>
+                    ` : `
+                        <button class="report-btn btn-download" onclick="downloadReportFile(${report.id}, false)" style="opacity: 0.6; cursor: not-allowed;">
+                            <i class="fas fa-download"></i>
+                            File Tidak Tersedia
+                        </button>
+                    `}
                     <button class="report-btn btn-view-report" onclick="viewReport(${report.id})">
                         <i class="fas fa-eye"></i>
                         Lihat Detail
                     </button>
                 </div>
             </div>
-        `).join('');
+        `
+        }).join('');
     }
 
     function updatePaginationReports(pagination) {
@@ -198,7 +228,7 @@
 
         paginationContainer.style.display = 'flex';
         paginationInfo.textContent =
-            `Halaman ${pagination.current_page} dari ${pagination.last_page} (${pagination.from}-${pagination.to} dari ${pagination.total} data)`;
+            `Halaman ${pagination.current_page} dari ${pagination.last_page} (${pagination.from || 0}-${pagination.to || 0} dari ${pagination.total} data)`;
 
         prevBtn.disabled = pagination.current_page === 1;
         nextBtn.disabled = pagination.current_page === pagination.last_page;
@@ -207,34 +237,46 @@
     function updateFiltersOptions(filters) {
         const categorySelect = document.getElementById('category-filter-reports');
 
+        if (!categorySelect) return;
+
         // Update category options
         categorySelect.innerHTML = '<option value="">Semua Kategori</option>';
-        Object.entries(filters.categories).forEach(([key, value]) => {
-            const option = document.createElement('option');
-            option.value = key;
-            option.textContent = value;
-            if (key === reportsData.filters.category) option.selected = true;
-            categorySelect.appendChild(option);
-        });
+
+        if (filters && filters.categories) {
+            Object.entries(filters.categories).forEach(([key, value]) => {
+                const option = document.createElement('option');
+                option.value = key;
+                option.textContent = value;
+                if (key === reportsData.filters.category) option.selected = true;
+                categorySelect.appendChild(option);
+            });
+        }
     }
 
     function showLoading(show) {
         const loading = document.getElementById('loading-reports');
         const grid = document.getElementById('reports-grid');
 
-        if (show) {
-            loading.style.display = 'flex';
-            grid.style.display = 'none';
-        } else {
-            loading.style.display = 'none';
-            grid.style.display = 'grid';
+        if (loading && grid) {
+            if (show) {
+                loading.style.display = 'flex';
+                grid.style.display = 'none';
+            } else {
+                loading.style.display = 'none';
+                grid.style.display = 'grid';
+            }
         }
     }
 
     function showNoReportsMessage() {
-        document.getElementById('reports-grid').style.display = 'none';
-        document.getElementById('no-reports').style.display = 'block';
-        document.getElementById('reports-pagination').style.display = 'none';
+        const grid = document.getElementById('reports-grid');
+        const noReports = document.getElementById('no-reports');
+        const pagination = document.getElementById('reports-pagination');
+
+        if (grid) grid.style.display = 'none';
+        if (noReports) noReports.style.display = 'block';
+        if (pagination) pagination.style.display = 'none';
+
         showLoading(false);
     }
 
@@ -250,35 +292,66 @@
         }
     }
 
+    function showFileNotAvailable() {
+        showNotification('File belum tersedia untuk diunduh. Silakan hubungi administrator.', 'info');
+    }
+
+    // Definisi function downloadReport dan viewReport yang menggunakan URL langsung
     async function downloadReport(reportId) {
+        // Ambil URL download dari data attribute atau gunakan ID
+        const reportCard = event?.target?.closest('.report-card');
+        let downloadUrl = `/reports/${reportId}/download`; // fallback
+
+        // Cari URL download dari data yang ada
+        const downloadBtn = event?.target?.closest('.btn-download');
+        if (downloadBtn && downloadBtn.dataset.downloadUrl) {
+            downloadUrl = downloadBtn.dataset.downloadUrl;
+        }
+
         try {
-            const response = await fetch(`/reports/${reportId}/download`);
+            // Tampilkan loading pada tombol
+            const btn = event?.target?.closest('.btn-download');
+            if (btn) {
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Downloading...';
+                btn.disabled = true;
 
-            if (response.ok) {
-                const blob = await response.blob();
-                const contentDisposition = response.headers.get('content-disposition');
-                let filename = 'document.pdf';
-                if (contentDisposition) {
-                    const match = contentDisposition.match(/filename="(.+)"/);
-                    if (match) filename = match[1];
-                }
-
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = filename;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                window.URL.revokeObjectURL(url);
-
-                showNotification('File berhasil diunduh!', 'success');
-            } else {
-                throw new Error('Download failed');
+                setTimeout(() => {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                }, 3000);
             }
+
+            // Untuk download file, kita bisa langsung redirect ke URL
+            window.location.href = downloadUrl;
+            showNotification('Download dimulai...', 'success');
+
         } catch (error) {
             console.error('Download error:', error);
             showNotification('Gagal mengunduh file. Silakan coba lagi.', 'error');
+        }
+    }
+
+    // Function untuk download berdasarkan nama file langsung
+    function downloadFileByName(filename) {
+        try {
+            const downloadUrl = `/download-file/${encodeURIComponent(filename)}`;
+            window.location.href = downloadUrl;
+            showNotification('Download dimulai...', 'success');
+        } catch (error) {
+            console.error('Download error:', error);
+            showNotification('Gagal mengunduh file. Silakan coba lagi.', 'error');
+        }
+    }
+
+    // Function untuk view berdasarkan nama file langsung
+    function viewFileByName(filename) {
+        try {
+            const viewUrl = `/view-file/${encodeURIComponent(filename)}`;
+            window.open(viewUrl, '_blank');
+        } catch (error) {
+            console.error('View error:', error);
+            showNotification('Gagal membuka file. Silakan coba lagi.', 'error');
         }
     }
 
@@ -293,6 +366,11 @@
             `;
 
             const response = await fetch(`/reports/${reportId}`);
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
             const data = await response.json();
 
             if (data.success) {
@@ -307,18 +385,58 @@
                                     <strong>Kategori:</strong>
                                     <span>${report.category_label}</span>
                                 </div>
+                                <div class="detail-item">
+                                    <strong>Tanggal Terbit:</strong>
+                                    <span>${report.publication_date}</span>
+                                </div>
+                                <div class="detail-item">
+                                    <strong>Jenis File:</strong>
+                                    <span>${report.file_type.toUpperCase()}</span>
+                                </div>
+                                <div class="detail-item">
+                                    <strong>Ukuran File:</strong>
+                                    <span>${report.file_size}</span>
+                                </div>
+                                <div class="detail-item">
+                                    <strong>Penerbit:</strong>
+                                    <span>${report.publisher}</span>
+                                </div>
+                                <div class="detail-item">
+                                    <strong>Status File:</strong>
+                                    <span style="color: ${report.has_file ? 'green' : 'red'}; font-weight: bold;">
+                                        ${report.has_file ? '✅ Tersedia' : '❌ Belum Tersedia'}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="detail-section">
+                            <h4>Deskripsi</h4>
+                            <p>${report.description}</p>
+                        </div>
                         
                         <div class="detail-actions">
-                            <button class="report-btn btn-download" onclick="downloadReport(${report.id})">
-                                <i class="fas fa-download"></i>
-                                Download File
-                            </button>
-                            ${report.file_type === 'pdf' ? `
-                            <button class="report-btn btn-view-report" onclick="openReportViewer(${report.id})">
-                                <i class="fas fa-external-link-alt"></i>
-                                Buka di Tab Baru
-                            </button>
-                            ` : ''}
+                            ${report.has_file ? `
+                                <button class="report-btn btn-download" onclick="downloadReportFile(${report.id}, true)">
+                                    <i class="fas fa-download"></i>
+                                    Download File
+                                </button>
+                                ${report.file_type === 'pdf' ? `
+                                <button class="report-btn btn-view-report" onclick="openReportViewer(${report.id})">
+                                    <i class="fas fa-external-link-alt"></i>
+                                    Buka di Tab Baru
+                                </button>
+                                ` : ''}
+                            ` : `
+                                <button class="report-btn btn-download" onclick="showFileNotAvailable()" style="opacity: 0.6; cursor: not-allowed;">
+                                    <i class="fas fa-download"></i>
+                                    File Belum Tersedia
+                                </button>
+                                <button class="report-btn btn-view-report" onclick="showContactAdmin()">
+                                    <i class="fas fa-envelope"></i>
+                                    Hubungi Administrator
+                                </button>
+                            `}
                         </div>
                     </div>
                 `;
@@ -342,7 +460,13 @@
     }
 
     function openReportViewer(reportId) {
-        window.open(`/reports/${reportId}/view`, '_blank');
+        // Gunakan route khusus untuk view (inline untuk PDF)
+        const viewUrl = `/simple-view/${reportId}`;
+        window.open(viewUrl, '_blank');
+    }
+
+    function showContactAdmin() {
+        showNotification('Silakan hubungi administrator desa untuk mendapatkan dokumen ini.', 'info');
     }
 
     function showNotification(message, type = 'info') {
@@ -380,26 +504,49 @@
         setTimeout(() => {
             notification.style.transform = 'translateX(100%)';
             setTimeout(() => {
-                document.body.removeChild(notification);
+                if (document.body.contains(notification)) {
+                    document.body.removeChild(notification);
+                }
             }, 300);
         }, 3000);
     }
 
     // ===== EVENT LISTENERS FOR REPORTS =====
-    document.getElementById('category-filter-reports').addEventListener('change', function(e) {
-        reportsData.filters.category = e.target.value;
-        reportsData.currentPage = 1;
-        loadReports(1);
-    });
+    document.addEventListener('DOMContentLoaded', function() {
+        // Category filter
+        const categoryFilter = document.getElementById('category-filter-reports');
+        if (categoryFilter) {
+            categoryFilter.addEventListener('change', function(e) {
+                reportsData.filters.category = e.target.value;
+                reportsData.currentPage = 1;
+                loadReports(1);
+            });
+        }
 
-    let searchTimeout;
-    document.getElementById('search-reports').addEventListener('input', function(e) {
-        clearTimeout(searchTimeout);
-        searchTimeout = setTimeout(() => {
-            reportsData.filters.search = e.target.value;
-            reportsData.currentPage = 1;
+        // Search functionality
+        const searchInput = document.getElementById('search-reports');
+        if (searchInput) {
+            let searchTimeout;
+            searchInput.addEventListener('input', function(e) {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => {
+                    reportsData.filters.search = e.target.value;
+                    reportsData.currentPage = 1;
+                    loadReports(1);
+                }, 500);
+            });
+        }
+
+        // Load initial reports if no featured reports
+        @if ($featuredReports->isEmpty())
             loadReports(1);
-        }, 500);
+        @else
+            // Tampilkan pagination untuk featured reports jika ada
+            const totalFeatured = {{ $featuredReports->count() }};
+            if (totalFeatured > 3) {
+                document.getElementById('reports-pagination').style.display = 'flex';
+            }
+        @endif
     });
 
     // ===== DATA TABLE FUNCTIONALITY =====
@@ -521,8 +668,8 @@
         const prevBtn = document.getElementById('prev-btn');
         const nextBtn = document.getElementById('next-btn');
 
-        prevBtn.disabled = currentPage === 1;
-        nextBtn.disabled = currentPage === totalPages;
+        if (prevBtn) prevBtn.disabled = currentPage === 1;
+        if (nextBtn) nextBtn.disabled = currentPage === totalPages;
 
         document.querySelectorAll('.pagination button').forEach(btn => {
             btn.classList.remove('active');
@@ -540,16 +687,18 @@
         const message = format === 'excel' ? 'Excel' : 'PDF';
         showNotification(`Mengexport data ke format ${message}...`, 'info');
 
-        const btn = event.target.closest('.action-btn');
-        const originalText = btn.innerHTML;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Exporting...';
-        btn.disabled = true;
+        const btn = event?.target?.closest('.action-btn');
+        if (btn) {
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Exporting...';
+            btn.disabled = true;
 
-        setTimeout(() => {
-            btn.innerHTML = originalText;
-            btn.disabled = false;
-            showNotification(`Data berhasil diexport ke ${message}!`, 'success');
-        }, 2000);
+            setTimeout(() => {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                showNotification(`Data berhasil diexport ke ${message}!`, 'success');
+            }, 2000);
+        }
     }
 
     function printData() {
@@ -558,85 +707,97 @@
 
     // ===== MODAL FUNCTIONS =====
     function openModal(modalId) {
-        document.getElementById(modalId).style.display = 'block';
-        document.body.style.overflow = 'hidden';
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.style.display = 'block';
+            document.body.style.overflow = 'hidden';
+        }
     }
 
     function closeModal(modalId) {
-        document.getElementById(modalId).style.display = 'none';
-        document.body.style.overflow = 'auto';
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
     }
 
     // ===== SEARCH FUNCTIONALITY FOR DATA TABLE =====
-    document.getElementById('search-input').addEventListener('input', function(e) {
-        const searchTerm = e.target.value.toLowerCase();
-        const filteredData = currentData.filter(item => {
-            return Object.values(item).some(value =>
-                value.toString().toLowerCase().includes(searchTerm)
-            );
+    const searchInput = document.getElementById('search-input');
+    if (searchInput) {
+        searchInput.addEventListener('input', function(e) {
+            const searchTerm = e.target.value.toLowerCase();
+            const filteredData = currentData.filter(item => {
+                return Object.values(item).some(value =>
+                    value.toString().toLowerCase().includes(searchTerm)
+                );
+            });
+
+            const tableBody = document.getElementById('table-body');
+            let html = '';
+
+            filteredData.slice(0, itemsPerPage).forEach((item, index) => {
+                const statusClass = `status-${item.status}`;
+                const statusText = item.status === 'active' ? 'Aktif' :
+                    item.status === 'inactive' ? 'Tidak Aktif' : 'Pending';
+
+                if (item.nik) {
+                    html += `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td>${item.nama}</td>
+                        <td>${item.kelamin}</td>
+                        <td>${item.lahir}</td>
+                        <td>${item.alamat}</td>
+                        <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                        <td>
+                            <div class="action-buttons">
+                                <button class="btn-small btn-view" title="Lihat"><i class="fas fa-eye"></i></button>
+                                <button class="btn-small btn-edit" title="Edit"><i class="fas fa-edit"></i></button>
+                                <button class="btn-small btn-delete" title="Hapus"><i class="fas fa-trash"></i></button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+                } else {
+                    html += `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td>${item.id}</td>
+                        <td>${item.nama}</td>
+                        <td>${item.kategori}</td>
+                        <td>${item.tanggal}</td>
+                        <td>${item.nilai}</td>
+                        <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                        <td>
+                            <div class="action-buttons">
+                                <button class="btn-small btn-view" title="Lihat"><i class="fas fa-eye"></i></button>
+                                <button class="btn-small btn-edit" title="Edit"><i class="fas fa-edit"></i></button>
+                                <button class="btn-small btn-delete" title="Hapus"><i class="fas fa-trash"></i></button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+                }
+            });
+
+            if (tableBody) tableBody.innerHTML = html;
         });
-
-        const tableBody = document.getElementById('table-body');
-        let html = '';
-
-        filteredData.slice(0, itemsPerPage).forEach((item, index) => {
-            const statusClass = `status-${item.status}`;
-            const statusText = item.status === 'active' ? 'Aktif' :
-                item.status === 'inactive' ? 'Tidak Aktif' : 'Pending';
-
-            if (item.nik) {
-                html += `
-                <tr>
-                    <td>${index + 1}</td>
-                    <td>${item.nama}</td>
-                    <td>${item.kelamin}</td>
-                    <td>${item.lahir}</td>
-                    <td>${item.alamat}</td>
-                    <td><span class="status-badge ${statusClass}">${statusText}</span></td>
-                    <td>
-                        <div class="action-buttons">
-                            <button class="btn-small btn-view" title="Lihat"><i class="fas fa-eye"></i></button>
-                            <button class="btn-small btn-edit" title="Edit"><i class="fas fa-edit"></i></button>
-                            <button class="btn-small btn-delete" title="Hapus"><i class="fas fa-trash"></i></button>
-                        </div>
-                    </td>
-                </tr>
-            `;
-            } else {
-                html += `
-                <tr>
-                    <td>${index + 1}</td>
-                    <td>${item.id}</td>
-                    <td>${item.nama}</td>
-                    <td>${item.kategori}</td>
-                    <td>${item.tanggal}</td>
-                    <td>${item.nilai}</td>
-                    <td><span class="status-badge ${statusClass}">${statusText}</span></td>
-                    <td>
-                        <div class="action-buttons">
-                            <button class="btn-small btn-view" title="Lihat"><i class="fas fa-eye"></i></button>
-                            <button class="btn-small btn-edit" title="Edit"><i class="fas fa-edit"></i></button>
-                            <button class="btn-small btn-delete" title="Hapus"><i class="fas fa-trash"></i></button>
-                        </div>
-                    </td>
-                </tr>
-            `;
-            }
-        });
-
-        tableBody.innerHTML = html;
-    });
+    }
 
     // ===== FILTER FUNCTIONALITY FOR DATA TABLE =====
-    document.getElementById('status-filter').addEventListener('change', function(e) {
-        const filterValue = e.target.value;
-        if (filterValue === '') {
-            updateTable();
-        } else {
-            const filteredData = currentData.filter(item => item.status === filterValue);
-            displayFilteredData(filteredData);
-        }
-    });
+    const statusFilter = document.getElementById('status-filter');
+    if (statusFilter) {
+        statusFilter.addEventListener('change', function(e) {
+            const filterValue = e.target.value;
+            if (filterValue === '') {
+                updateTable();
+            } else {
+                const filteredData = currentData.filter(item => item.status === filterValue);
+                displayFilteredData(filteredData);
+            }
+        });
+    }
 
     function displayFilteredData(data) {
         const tableBody = document.getElementById('table-body');
@@ -668,7 +829,7 @@
             }
         });
 
-        tableBody.innerHTML = html;
+        if (tableBody) tableBody.innerHTML = html;
     }
 
     // ===== ANIMATION FUNCTIONS =====
@@ -791,11 +952,13 @@
     });
 
     // ===== INITIALIZATION =====
-    document.addEventListener('DOMContentLoaded', async function() {
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize reports functionality
         @if ($featuredReports->isEmpty())
-            await loadReports(1);
+            loadReports(1);
         @endif
 
+        // Set interval for data simulation
         setInterval(simulateDataUpdate, 30000);
     });
 </script>

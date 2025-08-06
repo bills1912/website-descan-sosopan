@@ -26,7 +26,10 @@
     @include('landingPage.components.daftarData.statistics')
 
     <!-- Reports & Publications Section -->
-    @include('landingPage.components.daftarData.reports', ['featuredReports' => $featuredReports])
+    @include('landingPage.components.daftarData.reports', [
+        'featuredReports' => $featuredReports,
+        'totalReports' => $totalReports ?? 0,
+    ])
 
     <!-- Modals -->
     @include('landingPage.components.daftarData.modals')

@@ -21,7 +21,6 @@
         </div>
 
         <!-- Reports Grid -->
-        {{-- @dd($featuredReports) --}}
         <div class="report-grid" id="reports-grid">
             @if ($featuredReports && $featuredReports->isNotEmpty())
                 @foreach ($featuredReports as $report)
@@ -51,10 +50,24 @@
                             </div>
                         </div>
                         <div class="report-actions">
-                            <button class="report-btn btn-download" onclick="downloadReport({{ $report['id'] ?? 0 }})">
-                                <i class="fas fa-download"></i>
-                                Download
-                            </button>
+                            @if ($report['has_file'] ?? false)
+                                @php
+                                    $filename = isset($report['file_path'])
+                                        ? basename($report['file_path'])
+                                        : 'file_' . $report['id'] . '.pdf';
+                                @endphp
+                                <button class="report-btn btn-download"
+                                    onclick="downloadFileByName('{{ $filename }}')">
+                                    <i class="fas fa-download"></i>
+                                    Download
+                                </button>
+                            @else
+                                <button class="report-btn btn-download" onclick="showFileNotAvailable()"
+                                    style="opacity: 0.6; cursor: not-allowed;">
+                                    <i class="fas fa-download"></i>
+                                    File Tidak Tersedia
+                                </button>
+                            @endif
                             <button class="report-btn btn-view-report" onclick="viewReport({{ $report['id'] ?? 0 }})">
                                 <i class="fas fa-eye"></i>
                                 Lihat Detail
@@ -94,5 +107,38 @@
                 <i class="fas fa-chevron-right"></i>
             </button>
         </div>
+
+        <!-- Load More Button (Alternative to pagination) -->
+        <div class="text-center" style="margin-top: 2rem;">
+            <button class="report-btn btn-download" onclick="loadReports(1)" id="load-more-reports">
+                <i class="fas fa-plus"></i>
+                Lihat Semua Laporan
+            </button>
+        </div>
     </div>
 </section>
+
+<script>
+    // Initialize when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        // Check if we need to show "Load More" button
+        const totalReports = {{ $totalReports ?? 0 }};
+        const featuredCount = {{ $featuredReports->count() }};
+
+        if (totalReports > featuredCount) {
+            const loadMoreBtn = document.getElementById('load-more-reports');
+            if (loadMoreBtn) {
+                loadMoreBtn.style.display = 'inline-flex';
+                loadMoreBtn.onclick = function() {
+                    loadReports(1);
+                    this.style.display = 'none';
+                };
+            }
+        } else {
+            const loadMoreBtn = document.getElementById('load-more-reports');
+            if (loadMoreBtn) {
+                loadMoreBtn.style.display = 'none';
+            }
+        }
+    });
+</script>

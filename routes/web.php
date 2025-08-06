@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\PageRouting;
 use App\Http\Controllers\JDIHController;
 use App\Http\Controllers\ReportPublicationController;
+use Illuminate\Support\Facades\Log;
 
 Route::get('/', [PageRouting::class, 'halamanUtama'])->name('home');
 
@@ -53,24 +54,232 @@ Route::get('/daftar-data', [PageRouting::class, 'daftarData'])->name('daftar-dat
 Route::get('/api/data/{category}', [PageRouting::class, 'getDataByCategory'])->name('api.data.category');
 Route::get('/api/data/{category}/export/{format}', [PageRouting::class, 'exportDataByCategory'])->name('api.data.export');
 
+// Route untuk download file langsung dengan nama file
+Route::get('/download-file/{filename}', [ReportPublicationController::class, 'downloadByFilename'])
+    ->name('download.file')
+    ->where('filename', '.*'); // Allow dots in filename
+
+// Route untuk view file langsung dengan nama file  
+Route::get('/view-file/{filename}', [ReportPublicationController::class, 'viewByFilename'])
+    ->name('view.file')
+    ->where('filename', '.*'); // Allow dots in filename
+
 // ===== REPORTS & PUBLICATIONS =====
 Route::prefix('reports')->name('reports.')->group(function () {
-    // Main reports endpoint dengan pagination dan filtering
     Route::get('/', [ReportPublicationController::class, 'index'])->name('index');
-
-    // Featured reports
     Route::get('/featured', [ReportPublicationController::class, 'featured'])->name('featured');
-
-    // Report details
     Route::get('/{id}', [ReportPublicationController::class, 'show'])->name('show')->where('id', '[0-9]+');
-
-    // View report (untuk PDF bisa dibuka di browser)
     Route::get('/{id}/view', [ReportPublicationController::class, 'view'])->name('view');
-
-    // Download report
     Route::get('/{id}/download', [ReportPublicationController::class, 'download'])->name('download');
 });
 
+// Tambahkan di web.php route yang lebih sederhana
+
+// Tambahkan di web.php route yang lebih sederhana
+
+Route::get('/simple-download/{id}', function ($id) {
+    try {
+        $report = \App\Models\ReportPublicationData::findOrFail($id);
+
+        Log::info("Simple download request for report ID: {$id}");
+        Log::info("Report title: {$report->judul}");
+        Log::info("File path from DB: {$report->file_path}");
+
+        if (!$report->file_path) {
+            Log::error("No file_path in database for report ID: {$id}");
+            abort(404, 'File path tidak ditemukan di database');
+        }
+
+        $filename = basename($report->file_path);
+        Log::info("Looking for filename: {$filename}");
+
+        // Coba berbagai lokasi
+        $paths = [
+            public_path('storage/reports/' . $filename),
+            public_path('reports/' . $filename),
+            storage_path('app/public/reports/' . $filename),
+            storage_path('app/reports/' . $filename),
+        ];
+
+        // Jika tidak ditemukan dengan nama exact, coba scan folder
+        $foundPath = null;
+        foreach ($paths as $path) {
+            Log::info("Checking path: {$path}");
+            if (file_exists($path)) {
+                $foundPath = $path;
+                Log::info("✅ File found at: {$path}");
+                break;
+            } else {
+                Log::info("❌ File not found at: {$path}");
+            }
+        }
+
+        // Jika masih tidak ketemu, scan folder dan cari file yang mirip
+        if (!$foundPath) {
+            $reportsDir = public_path('storage/reports');
+            Log::info("Scanning directory: {$reportsDir}");
+
+            if (is_dir($reportsDir)) {
+                $files = array_diff(scandir($reportsDir), ['.', '..']);
+                Log::info("Available files: " . implode(', ', $files));
+
+                // Coba exact match dulu
+                if (in_array($filename, $files)) {
+                    $foundPath = $reportsDir . '/' . $filename;
+                    Log::info("✅ Found exact match: {$filename}");
+                } else {
+                    // Coba partial match
+                    $baseFilename = pathinfo($filename, PATHINFO_FILENAME);
+                    Log::info("Trying partial match for: {$baseFilename}");
+
+                    foreach ($files as $file) {
+                        if (stripos($file, $baseFilename) !== false) {
+                            $foundPath = $reportsDir . '/' . $file;
+                            $filename = $file; // Update ke nama file yang benar
+                            Log::info("✅ Found partial match: {$file}");
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        if (!$foundPath) {
+            Log::error("File not found after all attempts");
+            $debugInfo = [
+                'report_id' => $id,
+                'searched_filename' => basename($report->file_path),
+                'searched_paths' => $paths,
+                'available_files' => is_dir($reportsDir ?? '') ? array_diff(scandir($reportsDir), ['.', '..']) : []
+            ];
+
+            return response()->json([
+                'error' => 'File tidak ditemukan',
+                'debug' => $debugInfo
+            ], 404);
+        }
+
+        Log::info("✅ Starting download for: {$foundPath}");
+
+        // Download dengan nama file asli
+        return response()->download($foundPath, $filename);
+    } catch (\Exception $e) {
+        Log::error("Simple download error: " . $e->getMessage());
+        Log::error("Stack trace: " . $e->getTraceAsString());
+
+        return response()->json([
+            'error' => 'Download error: ' . $e->getMessage()
+        ], 500);
+    }
+})->name('simple.download');
+
+// Route untuk view file di browser (untuk PDF)
+Route::get('/simple-view/{id}', function ($id) {
+    try {
+        $report = \App\Models\ReportPublicationData::findOrFail($id);
+
+        if (!$report->file_path) {
+            abort(404, 'File path tidak ditemukan di database');
+        }
+
+        $filename = basename($report->file_path);
+
+        // Coba berbagai lokasi (sama seperti download)
+        $paths = [
+            public_path('storage/reports/' . $filename),
+            public_path('reports/' . $filename),
+            storage_path('app/public/reports/' . $filename),
+            storage_path('app/reports/' . $filename),
+        ];
+
+        $foundPath = null;
+        foreach ($paths as $path) {
+            if (file_exists($path)) {
+                $foundPath = $path;
+                break;
+            }
+        }
+
+        // Scan folder jika tidak ketemu
+        if (!$foundPath) {
+            $reportsDir = public_path('storage/reports');
+            if (is_dir($reportsDir)) {
+                $files = array_diff(scandir($reportsDir), ['.', '..']);
+
+                if (in_array($filename, $files)) {
+                    $foundPath = $reportsDir . '/' . $filename;
+                } else {
+                    $baseFilename = pathinfo($filename, PATHINFO_FILENAME);
+                    foreach ($files as $file) {
+                        if (stripos($file, $baseFilename) !== false) {
+                            $foundPath = $reportsDir . '/' . $file;
+                            $filename = $file;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        if (!$foundPath) {
+            abort(404, 'File tidak ditemukan');
+        }
+
+        // Untuk PDF, tampilkan di browser
+        $extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+        if ($extension === 'pdf') {
+            return response()->file($foundPath, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'inline; filename="' . $filename . '"'
+            ]);
+        }
+
+        // Untuk file lain, download
+        return response()->download($foundPath, $filename);
+    } catch (\Exception $e) {
+        abort(500, 'Error: ' . $e->getMessage());
+    }
+})->name('simple.view');
+
+// Route untuk list semua file di folder reports (debugging)
+Route::get('/list-reports-files', function () {
+    $reportsDir = public_path('storage/reports');
+
+    if (!is_dir($reportsDir)) {
+        return response()->json(['error' => 'Reports directory not found: ' . $reportsDir]);
+    }
+
+    $files = array_diff(scandir($reportsDir), ['.', '..']);
+
+    $fileDetails = [];
+    foreach ($files as $file) {
+        $filePath = $reportsDir . '/' . $file;
+        $fileDetails[] = [
+            'name' => $file,
+            'size' => filesize($filePath),
+            'modified' => date('Y-m-d H:i:s', filemtime($filePath)),
+            'download_url' => url('/simple-download-direct/' . urlencode($file))
+        ];
+    }
+
+    return response()->json([
+        'directory' => $reportsDir,
+        'files' => $fileDetails,
+        'total_files' => count($files)
+    ]);
+});
+
+// Route untuk download langsung berdasarkan nama file fisik
+Route::get('/simple-download-direct/{filename}', function ($filename) {
+    $filename = urldecode($filename);
+    $filePath = public_path('storage/reports/' . $filename);
+
+    if (!file_exists($filePath)) {
+        abort(404, 'File tidak ditemukan: ' . $filename);
+    }
+
+    return response()->download($filePath, $filename);
+})->where('filename', '.*')->name('simple.download.direct');
 // Optional: Additional routes for API endpoints or admin functionality
 Route::prefix('api')->group(function () {
     // API routes for data fetching

@@ -181,11 +181,21 @@ class PageRouting extends Controller
     public function daftarData()
     {
         try {
-            // Get featured reports for initial display
-            $featuredReports = ReportPublicationData::published()
-                ->featured()
-                ->recent(3)
+            // Get all reports for initial display, tapi batasi untuk featured saja
+            $featuredReports = ReportPublicationData::whereIn('kategori', ['annual_report', 'financial_report', 'village_profile'])
+                ->orderBy('waktu_terbit', 'desc')
+                ->limit(3)  // Batasi hanya 3 untuk tampilan awal
                 ->get();
+
+            // Jika tidak ada featured reports, ambil 3 terbaru dari semua kategori
+            if ($featuredReports->isEmpty()) {
+                $featuredReports = ReportPublicationData::orderBy('waktu_terbit', 'desc')
+                    ->limit(3)
+                    ->get();
+            }
+
+            // Get total count untuk keperluan JavaScript
+            $totalReports = ReportPublicationData::count();
 
             // Transform data for view
             $featuredReports->transform(function ($report) {
@@ -199,20 +209,24 @@ class PageRouting extends Controller
                     'view_url' => $report->view_url,
                     'type_icon' => $report->type_icon,
                     'file_type' => $report->file_type,
+                    'file_path' => $report->file_path, // Tambahkan ini
                     'formatted_file_size' => $report->formatted_file_size,
                     'download_count' => rand(10, 100), // Mock data since no field
+                    'has_file' => $report->has_file,
                 ];
             });
 
             return view('landingPage.components.daftarData', [
-                'featuredReports' => $featuredReports
+                'featuredReports' => $featuredReports,
+                'totalReports' => $totalReports
             ]);
         } catch (\Exception $e) {
             Log::error('Error loading daftar data page: ' . $e->getMessage());
 
             // Return view with empty collection if error occurs
             return view('landingPage.components.daftarData', [
-                'featuredReports' => collect()
+                'featuredReports' => collect(),
+                'totalReports' => 0
             ]);
         }
     }

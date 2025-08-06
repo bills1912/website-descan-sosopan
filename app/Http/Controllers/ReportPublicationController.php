@@ -18,8 +18,8 @@ class ReportPublicationController extends Controller
     public function index(Request $request): JsonResponse
     {
         try {
-            $query = ReportPublicationData::whereNotNull('file_path');
-            dd($query);
+            // Hapus filter file_path yang menyebabkan data tidak muncul
+            $query = ReportPublicationData::query();
 
             // Apply filters
             if ($request->has('kategori') && $request->kategori != '') {
@@ -45,8 +45,8 @@ class ReportPublicationController extends Controller
                 $query->orderBy($sortBy, $sortOrder);
             }
 
-            // Pagination
-            $perPage = $request->get('per_page', 6);
+            // Pagination - ubah default menjadi 3
+            $perPage = $request->get('per_page', 3);
             $reports = $query->paginate($perPage);
 
             // Transform data for frontend
@@ -104,11 +104,11 @@ class ReportPublicationController extends Controller
             // Increment view count (mock implementation)
             $report->incrementViewCount();
 
-            // Check if file exists
+            // Jika tidak ada file fisik, tampilkan informasi dokumen
             if (!$report->file_path || !Storage::exists($report->file_path)) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'File tidak ditemukan'
+                    'message' => 'File fisik tidak tersedia, namun informasi dokumen dapat dilihat di detail laporan'
                 ], 404);
             }
 
@@ -145,21 +145,224 @@ class ReportPublicationController extends Controller
             // Increment download count (mock implementation)
             $report->incrementDownloadCount();
 
-            // Check if file exists
-            if (!$report->file_path || !Storage::exists($report->file_path)) {
+            if (!$report->file_path) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'File tidak ditemukan'
+                    'message' => 'Path file tidak ditemukan di database.'
+                ], 404);
+            }
+
+            // Coba berbagai kemungkinan path
+            $possiblePaths = [
+                $report->file_path,
+                'reports/' . basename($report->file_path),
+                'public/reports/' . basename($report->file_path),
+            ];
+
+            $foundPath = null;
+            $disk = 'local';
+
+            // Cek di default storage
+            foreach ($possiblePaths as $path) {
+                if (Storage::exists($path)) {
+                    $foundPath = $path;
+                    $disk = 'local';
+                    break;
+                }
+            }
+
+            // Jika tidak ditemukan, cek di public disk
+            if (!$foundPath) {
+                foreach ($possiblePaths as $path) {
+                    if (Storage::disk('public')->exists($path)) {
+                        $foundPath = $path;
+                        $disk = 'public';
+                        break;
+                    }
+                }
+            }
+
+            // Jika masih tidak ditemukan, cek file fisik langsung
+            if (!$foundPath) {
+                $publicPaths = [
+                    public_path('storage/reports/' . basename($report->file_path)),
+                    public_path('reports/' . basename($report->file_path)),
+                    public_path('storage/' . $report->file_path),
+                ];
+
+                foreach ($publicPaths as $path) {
+                    if (file_exists($path)) {
+                        $filename = $report->judul . '.' . $report->file_type;
+                        return response()->download($path, $filename);
+                    }
+                }
+            }
+
+            if (!$foundPath) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'File tidak ditemukan. Debug info: Path database = ' . $report->file_path . ', Filename = ' . basename($report->file_path)
                 ], 404);
             }
 
             $filename = $report->judul . '.' . $report->file_type;
-            return Storage::download($report->file_path, $filename);
+
+            if ($disk === 'public') {
+                $filePath = Storage::disk('public')->path($foundPath);
+                return response()->download($filePath, $filename);
+            } else {
+                return Storage::download($foundPath, $filename);
+            }
+
         } catch (\Exception $e) {
             Log::error('Error downloading document: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Gagal mengunduh dokumen'
+                'message' => 'Gagal mengunduh dokumen: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Download file by filename
+     */
+    public function downloadByFilename($filename)
+    {
+        try {
+            // Sanitize filename untuk keamanan
+            $filename = basename($filename);
+            
+            // Decode URL jika ada encoding
+            $filename = urldecode($filename);
+            
+            Log::info("Trying to download file: " . $filename);
+            
+            // Coba berbagai kemungkinan lokasi file
+            $possiblePaths = [
+                public_path('storage/reports/' . $filename),
+                public_path('reports/' . $filename),
+                storage_path('app/public/reports/' . $filename),
+                storage_path('app/reports/' . $filename),
+            ];
+
+            // Jika filename dari database tidak sesuai, coba juga tanpa extension dan dengan extension berbeda
+            $baseFilename = pathinfo($filename, PATHINFO_FILENAME);
+            $extensions = ['pdf', 'xlsx', 'docx', 'doc'];
+            
+            foreach ($extensions as $ext) {
+                $possiblePaths[] = public_path('storage/reports/' . $baseFilename . '.' . $ext);
+                $possiblePaths[] = public_path('reports/' . $baseFilename . '.' . $ext);
+                $possiblePaths[] = storage_path('app/public/reports/' . $baseFilename . '.' . $ext);
+                $possiblePaths[] = storage_path('app/reports/' . $baseFilename . '.' . $ext);
+            }
+
+            // Log semua path yang dicoba
+            Log::info("Searching in paths: " . implode(', ', $possiblePaths));
+
+            $foundPath = null;
+            foreach ($possiblePaths as $path) {
+                if (file_exists($path)) {
+                    $foundPath = $path;
+                    Log::info("File found at: " . $path);
+                    break;
+                }
+            }
+
+            if (!$foundPath) {
+                // Coba scan folder reports untuk mencari file yang mirip
+                $reportsDir = public_path('storage/reports');
+                if (is_dir($reportsDir)) {
+                    $files = scandir($reportsDir);
+                    $matchedFile = null;
+                    
+                    foreach ($files as $file) {
+                        if ($file === '.' || $file === '..') continue;
+                        
+                        // Coba match berdasarkan nama tanpa extension
+                        if (stripos($file, $baseFilename) !== false) {
+                            $matchedFile = $file;
+                            break;
+                        }
+                    }
+                    
+                    if ($matchedFile) {
+                        $foundPath = $reportsDir . '/' . $matchedFile;
+                        $filename = $matchedFile; // Update filename ke yang benar
+                        Log::info("Found similar file: " . $matchedFile);
+                    }
+                }
+            }
+
+            if (!$foundPath) {
+                Log::error("File not found: " . $filename);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'File tidak ditemukan: ' . $filename . '. Lokasi dicari: ' . implode(', ', array_slice($possiblePaths, 0, 4))
+                ], 404);
+            }
+
+            // Dapatkan nama file asli untuk download
+            $originalFilename = basename($foundPath);
+            
+            // Return file untuk download dengan nama asli
+            return response()->download($foundPath, $originalFilename);
+
+        } catch (\Exception $e) {
+            Log::error('Error downloading file: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal mengunduh file: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * View file by filename
+     */
+    public function viewByFilename($filename)
+    {
+        try {
+            $filename = basename($filename);
+            
+            $possiblePaths = [
+                public_path('storage/reports/' . $filename),
+                public_path('reports/' . $filename),
+                storage_path('app/public/reports/' . $filename),
+                storage_path('app/reports/' . $filename),
+            ];
+
+            $foundPath = null;
+            foreach ($possiblePaths as $path) {
+                if (file_exists($path)) {
+                    $foundPath = $path;
+                    break;
+                }
+            }
+
+            if (!$foundPath) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'File tidak ditemukan: ' . $filename
+                ], 404);
+            }
+
+            // Untuk PDF, tampilkan di browser
+            $extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+            if ($extension === 'pdf') {
+                return response()->file($foundPath, [
+                    'Content-Type' => 'application/pdf',
+                    'Content-Disposition' => 'inline; filename="' . $filename . '"'
+                ]);
+            }
+
+            // Untuk file lain, download
+            return response()->download($foundPath, $filename);
+
+        } catch (\Exception $e) {
+            Log::error('Error viewing file: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal membuka file: ' . $e->getMessage()
             ], 500);
         }
     }
@@ -191,6 +394,7 @@ class ReportPublicationController extends Controller
                     'download_url' => $report->download_url,
                     'view_url' => $report->view_url,
                     'is_featured' => in_array($report->kategori, ['annual_report', 'financial_report', 'village_profile']),
+                    'has_file' => $report->file_path && Storage::exists($report->file_path),
                 ]
             ]);
         } catch (\Exception $e) {
@@ -208,8 +412,8 @@ class ReportPublicationController extends Controller
     public function featured(): JsonResponse
     {
         try {
-            $reports = ReportPublicationData::whereNotNull('file_path')
-                ->whereIn('kategori', ['annual_report', 'financial_report', 'village_profile'])
+            // Hapus filter file_path agar semua data bisa muncul
+            $reports = ReportPublicationData::whereIn('kategori', ['annual_report', 'financial_report', 'village_profile'])
                 ->orderBy('waktu_terbit', 'desc')
                 ->limit(6)
                 ->get();
@@ -224,6 +428,10 @@ class ReportPublicationController extends Controller
                     'download_url' => $report->download_url,
                     'view_url' => $report->view_url,
                     'type_icon' => $report->type_icon,
+                    'file_type' => $report->file_type,
+                    'formatted_file_size' => $report->formatted_file_size,
+                    'download_count' => rand(10, 100), // Mock data
+                    'has_file' => $report->file_path && Storage::exists($report->file_path),
                 ];
             });
 
