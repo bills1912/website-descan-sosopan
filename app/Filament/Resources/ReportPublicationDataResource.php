@@ -45,6 +45,7 @@ class ReportPublicationDataResource extends Resource
                         'development_report' => 'Laporan Pembangunan',
                         'other' => 'Lainnya'
                     ])
+                    ->native(false)
                     ->default('Lainnya'),
                 Forms\Components\FileUpload::make('file_path')
                     ->required()
