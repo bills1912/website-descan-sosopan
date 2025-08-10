@@ -208,12 +208,11 @@ class ReportPublicationController extends Controller
             $filename = $report->judul . '.' . $report->file_type;
 
             if ($disk === 'public') {
-                $filePath = Storage::disk('public')->path($foundPath);
-                return response()->download($filePath, $filename);
+                $fullPath = Storage::disk('public')->path($foundPath);
+                return response()->download($fullPath, $filename);
             } else {
                 return Storage::download($foundPath, $filename);
             }
-
         } catch (\Exception $e) {
             Log::error('Error downloading document: ' . $e->getMessage());
             return response()->json([
@@ -231,12 +230,12 @@ class ReportPublicationController extends Controller
         try {
             // Sanitize filename untuk keamanan
             $filename = basename($filename);
-            
+
             // Decode URL jika ada encoding
             $filename = urldecode($filename);
-            
+
             Log::info("Trying to download file: " . $filename);
-            
+
             // Coba berbagai kemungkinan lokasi file
             $possiblePaths = [
                 public_path('storage/reports/' . $filename),
@@ -248,7 +247,7 @@ class ReportPublicationController extends Controller
             // Jika filename dari database tidak sesuai, coba juga tanpa extension dan dengan extension berbeda
             $baseFilename = pathinfo($filename, PATHINFO_FILENAME);
             $extensions = ['pdf', 'xlsx', 'docx', 'doc'];
-            
+
             foreach ($extensions as $ext) {
                 $possiblePaths[] = public_path('storage/reports/' . $baseFilename . '.' . $ext);
                 $possiblePaths[] = public_path('reports/' . $baseFilename . '.' . $ext);
@@ -274,17 +273,17 @@ class ReportPublicationController extends Controller
                 if (is_dir($reportsDir)) {
                     $files = scandir($reportsDir);
                     $matchedFile = null;
-                    
+
                     foreach ($files as $file) {
                         if ($file === '.' || $file === '..') continue;
-                        
+
                         // Coba match berdasarkan nama tanpa extension
                         if (stripos($file, $baseFilename) !== false) {
                             $matchedFile = $file;
                             break;
                         }
                     }
-                    
+
                     if ($matchedFile) {
                         $foundPath = $reportsDir . '/' . $matchedFile;
                         $filename = $matchedFile; // Update filename ke yang benar
@@ -303,10 +302,9 @@ class ReportPublicationController extends Controller
 
             // Dapatkan nama file asli untuk download
             $originalFilename = basename($foundPath);
-            
+
             // Return file untuk download dengan nama asli
             return response()->download($foundPath, $originalFilename);
-
         } catch (\Exception $e) {
             Log::error('Error downloading file: ' . $e->getMessage());
             return response()->json([
@@ -323,7 +321,7 @@ class ReportPublicationController extends Controller
     {
         try {
             $filename = basename($filename);
-            
+
             $possiblePaths = [
                 public_path('storage/reports/' . $filename),
                 public_path('reports/' . $filename),
@@ -357,7 +355,6 @@ class ReportPublicationController extends Controller
 
             // Untuk file lain, download
             return response()->download($foundPath, $filename);
-
         } catch (\Exception $e) {
             Log::error('Error viewing file: ' . $e->getMessage());
             return response()->json([

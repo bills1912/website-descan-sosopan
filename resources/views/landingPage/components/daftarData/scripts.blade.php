@@ -95,11 +95,11 @@
             });
 
             const response = await fetch(`/reports?${params}`);
-
+            
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-
+            
             const data = await response.json();
 
             if (data.success) {
@@ -125,24 +125,24 @@
             showFileNotAvailable();
             return;
         }
-
+        
         // Tampilkan loading pada tombol yang diklik
         const btn = event?.target?.closest('.btn-download');
         let originalText = '';
-
+        
         if (btn) {
             originalText = btn.innerHTML;
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Downloading...';
             btn.disabled = true;
         }
-
+        
         // Tampilkan notifikasi
         showNotification('Download dimulai...', 'success');
-
+        
         // Redirect ke route simple download
         setTimeout(() => {
             window.location.href = `/simple-download/${reportId}`;
-
+            
             // Restore tombol setelah sedikit delay
             if (btn) {
                 setTimeout(() => {
@@ -211,8 +211,7 @@
                     </button>
                 </div>
             </div>
-        `
-        }).join('');
+        `}).join('');
     }
 
     function updatePaginationReports(pagination) {
@@ -241,7 +240,7 @@
 
         // Update category options
         categorySelect.innerHTML = '<option value="">Semua Kategori</option>';
-
+        
         if (filters && filters.categories) {
             Object.entries(filters.categories).forEach(([key, value]) => {
                 const option = document.createElement('option');
@@ -272,11 +271,11 @@
         const grid = document.getElementById('reports-grid');
         const noReports = document.getElementById('no-reports');
         const pagination = document.getElementById('reports-pagination');
-
+        
         if (grid) grid.style.display = 'none';
         if (noReports) noReports.style.display = 'block';
         if (pagination) pagination.style.display = 'none';
-
+        
         showLoading(false);
     }
 
@@ -301,7 +300,7 @@
         // Ambil URL download dari data attribute atau gunakan ID
         const reportCard = event?.target?.closest('.report-card');
         let downloadUrl = `/reports/${reportId}/download`; // fallback
-
+        
         // Cari URL download dari data yang ada
         const downloadBtn = event?.target?.closest('.btn-download');
         if (downloadBtn && downloadBtn.dataset.downloadUrl) {
@@ -315,7 +314,7 @@
                 const originalText = btn.innerHTML;
                 btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Downloading...';
                 btn.disabled = true;
-
+                
                 setTimeout(() => {
                     btn.innerHTML = originalText;
                     btn.disabled = false;
@@ -366,11 +365,11 @@
             `;
 
             const response = await fetch(`/reports/${reportId}`);
-
+            
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-
+            
             const data = await response.json();
 
             if (data.success) {
@@ -437,6 +436,8 @@
                                     Hubungi Administrator
                                 </button>
                             `}
+                            
+                            <!-- Debug button for development -->
                         </div>
                     </div>
                 `;
@@ -467,6 +468,14 @@
 
     function showContactAdmin() {
         showNotification('Silakan hubungi administrator desa untuk mendapatkan dokumen ini.', 'info');
+    }
+
+    // Function untuk debug file status - versi simple
+    function debugFileStatus(reportId) {
+        // Open debug URL in new tab instead of AJAX
+        var debugUrl = '/test-accessor/' + reportId;
+        window.open(debugUrl, '_blank');
+        showNotification('Debug window opened in new tab', 'info');
     }
 
     function showNotification(message, type = 'info') {

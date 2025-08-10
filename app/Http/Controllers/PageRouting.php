@@ -27,7 +27,7 @@ class PageRouting extends Controller
     public function halamanUtama()
     {
         return view('landingPage.components.halamanUtama', [
-            'foto_home' => FotoHome::all()
+            'foto_home' => FotoHome::first()->foto ?? null
         ]);
     }
 

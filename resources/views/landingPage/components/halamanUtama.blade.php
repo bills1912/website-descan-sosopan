@@ -9,7 +9,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            background-image: url('storage/01K1CP2VP3AHNXE55CKD7TT1RT.jpg');
+            background-image: url('storage/{{ $foto_home }}');
             overflow: hidden;
         }
 
@@ -701,7 +701,7 @@
     </style>
 
     <!-- Hero Section -->
-    {{-- @dd('storage/'.$foto_home[0]->foto) --}}
+    {{-- @dd($foto_home) --}}
     <section class="hero parallax-container">
         <div class="hero-layer"></div>
         <div class="parallax-layer" data-speed="0.5">

@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 
 class ReportPublicationData extends Model
@@ -38,7 +39,7 @@ class ReportPublicationData extends Model
     protected function downloadUrl(): Attribute
     {
         return Attribute::make(
-            get: function () {
+            get: function() {
                 if ($this->file_path) {
                     $filename = basename($this->file_path);
                     return route('download.file', ['filename' => $filename]);
@@ -51,7 +52,7 @@ class ReportPublicationData extends Model
     protected function viewUrl(): Attribute
     {
         return Attribute::make(
-            get: function () {
+            get: function() {
                 if ($this->file_path) {
                     $filename = basename($this->file_path);
                     return route('view.file', ['filename' => $filename]);
@@ -122,11 +123,44 @@ class ReportPublicationData extends Model
             ->limit($limit);
     }
 
-    // Accessor untuk cek file exists
+    // Accessor untuk cek file exists - versi simple dan reliable
     protected function hasFile(): Attribute
     {
         return Attribute::make(
-            get: fn() => $this->checkFileExists()
+            get: function() {
+                if (!$this->file_path) {
+                    return false;
+                }
+                
+                $filename = basename($this->file_path);
+                
+                // Primary check: file di public/storage/reports
+                $primaryPath = public_path('storage/reports/' . $filename);
+                if (file_exists($primaryPath)) {
+                    return true;
+                }
+                
+                // Secondary check: scan directory untuk partial match
+                $reportsDir = public_path('storage/reports');
+                if (is_dir($reportsDir)) {
+                    $files = array_diff(scandir($reportsDir), ['.', '..']);
+                    
+                    // Exact match
+                    if (in_array($filename, $files)) {
+                        return true;
+                    }
+                    
+                    // Partial match
+                    $baseFilename = pathinfo($filename, PATHINFO_FILENAME);
+                    foreach ($files as $file) {
+                        if (stripos($file, $baseFilename) !== false) {
+                            return true;
+                        }
+                    }
+                }
+                
+                return false;
+            }
         );
     }
 
@@ -151,41 +185,41 @@ class ReportPublicationData extends Model
         if (!$this->file_path) {
             return $this->getEstimatedFileSize();
         }
-
+        
         // Coba berbagai kemungkinan path
         $possiblePaths = [
             $this->file_path, // Path asli dari database
             'reports/' . basename($this->file_path), // Jika hanya nama file
             'public/reports/' . basename($this->file_path), // Jika di public/reports
         ];
-
+        
         foreach ($possiblePaths as $path) {
             if (Storage::exists($path)) {
                 $bytes = Storage::size($path);
                 return $this->formatBytes($bytes);
             }
-
+            
             // Cek di disk public
             if (Storage::disk('public')->exists($path)) {
                 $bytes = Storage::disk('public')->size($path);
                 return $this->formatBytes($bytes);
             }
         }
-
+        
         // Cek file fisik langsung di public/storage
         $publicPaths = [
             public_path('storage/reports/' . basename($this->file_path)),
             public_path('reports/' . basename($this->file_path)),
             public_path('storage/' . $this->file_path),
         ];
-
+        
         foreach ($publicPaths as $path) {
             if (file_exists($path)) {
                 $bytes = filesize($path);
                 return $this->formatBytes($bytes);
             }
         }
-
+        
         return 'File tidak tersedia';
     }
 
@@ -194,34 +228,46 @@ class ReportPublicationData extends Model
         if (!$this->file_path) {
             return false;
         }
-
-        // Coba berbagai kemungkinan path
+        
+        // Ambil nama file dari database path
+        $filename = basename($this->file_path);
+        
+        // Coba berbagai kemungkinan path (sama dengan yang digunakan di simple-download)
         $possiblePaths = [
-            $this->file_path,
-            'reports/' . basename($this->file_path),
-            'public/reports/' . basename($this->file_path),
+            public_path('storage/reports/' . $filename),
+            public_path('reports/' . $filename),
+            storage_path('app/public/reports/' . $filename),
+            storage_path('app/reports/' . $filename),
         ];
-
-        // Cek di storage Laravel
+        
+        // Cek setiap path
         foreach ($possiblePaths as $path) {
-            if (Storage::exists($path) || Storage::disk('public')->exists($path)) {
-                return true;
-            }
-        }
-
-        // Cek file fisik di public
-        $publicPaths = [
-            public_path('storage/reports/' . basename($this->file_path)),
-            public_path('reports/' . basename($this->file_path)),
-            public_path('storage/' . $this->file_path),
-        ];
-
-        foreach ($publicPaths as $path) {
             if (file_exists($path)) {
                 return true;
             }
         }
-
+        
+        // Jika tidak ditemukan dengan nama exact, coba scan folder dan cari file yang mirip
+        $reportsDir = public_path('storage/reports');
+        
+        if (is_dir($reportsDir)) {
+            $files = array_diff(scandir($reportsDir), ['.', '..']);
+            
+            // Coba exact match dulu
+            if (in_array($filename, $files)) {
+                return true;
+            }
+            
+            // Coba partial match
+            $baseFilename = pathinfo($filename, PATHINFO_FILENAME);
+            
+            foreach ($files as $file) {
+                if (stripos($file, $baseFilename) !== false) {
+                    return true;
+                }
+            }
+        }
+        
         return false;
     }
 

@@ -25,23 +25,23 @@
                     </h3>
                     <div class="info-item">
                         <span class="info-label">Nama Desa</span>
-                        <span class="info-value">Desa Maju Sejahtera</span>
+                        <span class="info-value">Desa Sosopan</span>
                     </div>
                     <div class="info-item">
                         <span class="info-label">Kecamatan</span>
-                        <span class="info-value">Kecamatan Sentral</span>
+                        <span class="info-value">Kecamatan Padang Bolak</span>
                     </div>
                     <div class="info-item">
                         <span class="info-label">Kabupaten</span>
-                        <span class="info-value">Kabupaten Harmoni</span>
+                        <span class="info-value">Kabupaten Padang Lawas Utara</span>
                     </div>
                     <div class="info-item">
                         <span class="info-label">Provinsi</span>
-                        <span class="info-value">Provinsi Nusantara</span>
+                        <span class="info-value">Provinsi Sumatera Utara</span>
                     </div>
                     <div class="info-item">
                         <span class="info-label">Kode Pos</span>
-                        <span class="info-value">12345</span>
+                        <span class="info-value">-</span>
                     </div>
                 </div>
 
@@ -52,23 +52,11 @@
                     </h3>
                     <div class="info-item">
                         <span class="info-label">Luas Wilayah</span>
-                        <span class="info-value">15.75 km²</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Ketinggian</span>
-                        <span class="info-value">450 mdpl</span>
+                        <span class="info-value">0.6 km²</span>
                     </div>
                     <div class="info-item">
                         <span class="info-label">Topografi</span>
-                        <span class="info-value">Dataran Tinggi</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Curah Hujan</span>
-                        <span class="info-value">2.500 mm/tahun</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Suhu Rata-rata</span>
-                        <span class="info-value">24°C - 28°C</span>
+                        <span class="info-value">Dataran Rendah</span>
                     </div>
                 </div>
 
@@ -79,23 +67,19 @@
                     </h3>
                     <div class="info-item">
                         <span class="info-label">Jumlah Penduduk</span>
-                        <span class="info-value">1.247 jiwa</span>
+                        <span class="info-value">521 jiwa</span>
                     </div>
                     <div class="info-item">
                         <span class="info-label">Laki-laki</span>
-                        <span class="info-value">623 jiwa</span>
+                        <span class="info-value">255 jiwa</span>
                     </div>
                     <div class="info-item">
                         <span class="info-label">Perempuan</span>
-                        <span class="info-value">624 jiwa</span>
+                        <span class="info-value">266 jiwa</span>
                     </div>
                     <div class="info-item">
                         <span class="info-label">Kepala Keluarga</span>
-                        <span class="info-value">387 KK</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Kepadatan</span>
-                        <span class="info-value">79 jiwa/km²</span>
+                        <span class="info-value">139 KK</span>
                     </div>
                 </div>
 
@@ -110,19 +94,11 @@
                     </div>
                     <div class="info-item">
                         <span class="info-label">Komoditas Unggulan</span>
-                        <span class="info-value">Padi, Jagung</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">UMKM</span>
-                        <span class="info-value">45 unit</span>
+                        <span class="info-value">Kelapa Sawit</span>
                     </div>
                     <div class="info-item">
                         <span class="info-label">Industri Kecil</span>
-                        <span class="info-value">12 unit</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Potensi Wisata</span>
-                        <span class="info-value">3 lokasi</span>
+                        <span class="info-value">3 unit</span>
                     </div>
                 </div>
             </div>
