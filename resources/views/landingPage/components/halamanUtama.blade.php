@@ -906,20 +906,20 @@
             <h2 class="section-title" style="color: white;">Statistik Desa</h2>
             <div class="stats-grid">
                 <div class="stat-item card-3d">
-                    <div class="stat-number">1,247</div>
+                    <div class="stat-number">521</div>
                     <div class="stat-label">Total Penduduk</div>
                 </div>
                 <div class="stat-item card-3d">
-                    <div class="stat-number">387</div>
+                    <div class="stat-number">139</div>
                     <div class="stat-label">Kepala Keluarga</div>
                 </div>
                 <div class="stat-item card-3d">
-                    <div class="stat-number">12</div>
-                    <div class="stat-label">Dusun</div>
+                    <div class="stat-number">255</div>
+                    <div class="stat-label">Penduduk Laki-Laki</div>
                 </div>
                 <div class="stat-item card-3d">
-                    <div class="stat-number">45</div>
-                    <div class="stat-label">RT/RW</div>
+                    <div class="stat-number">266</div>
+                    <div class="stat-label">Penduduk Perempuan</div>
                 </div>
             </div>
         </div>
