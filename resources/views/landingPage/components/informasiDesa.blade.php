@@ -160,10 +160,11 @@
 
             <!-- Gallery Grid -->
             <div class="gallery-grid">
+                {{-- @dd($kegiatanDesa[0]) --}}
                 @forelse($kegiatanDesa as $kegiatan)
                     <div class="gallery-item" data-kegiatan="{{ $kegiatan->id }}">
                         @if ($kegiatan->file_path)
-                            <img src="{{ asset('storage/kegiatanDesa/' . $kegiatan->file_path) }}"
+                            <img src="{{ url('/storage/' . $kegiatan->file_path) }}"
                                 alt="{{ $kegiatan->judul_kegiatan }}"
                                 onerror="this.src='https://images.unsplash.com/photo-1582213782179-e0d53f98f2ca?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80'">
                         @else
