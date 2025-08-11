@@ -106,62 +106,189 @@
     </section>
 
     <!-- Gallery Section -->
+    <!-- Enhanced Gallery Section with Pagination and Filter -->
     <section class="gallery-section">
         <div class="container">
-            <h2 class="section-title">Galeri Desa</h2>
-            <div class="gallery-grid">
-                <div class="gallery-item">
-                    <img src="https://images.unsplash.com/photo-1586348943529-beaae6c28db9?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80"
-                        alt="Sawah Padi">
-                    <div class="gallery-overlay">
-                        <div class="gallery-title">Hamparan Sawah Padi</div>
-                        <div class="gallery-description">Lahan pertanian yang subur menjadi tulang punggung ekonomi desa
+            <h2 class="section-title">Galeri Kegiatan Desa</h2>
+
+            <!-- Filter Section -->
+            <div class="gallery-filter">
+                <form id="filterForm" method="GET" action="{{ route('informasi-desa') }}">
+                    <div class="filter-container">
+                        <div class="filter-group">
+                            <label for="jenis_kegiatan">Jenis Kegiatan</label>
+                            <select name="jenis_kegiatan" id="jenis_kegiatan" class="filter-select">
+                                <option value="">Semua Kegiatan</option>
+                                <option value="sosial" {{ request('jenis_kegiatan') == 'sosial' ? 'selected' : '' }}>Sosial
+                                </option>
+                                <option value="ekonomi" {{ request('jenis_kegiatan') == 'ekonomi' ? 'selected' : '' }}>
+                                    Ekonomi</option>
+                                <option value="pendidikan"
+                                    {{ request('jenis_kegiatan') == 'pendidikan' ? 'selected' : '' }}>Pendidikan</option>
+                                <option value="kesehatan" {{ request('jenis_kegiatan') == 'kesehatan' ? 'selected' : '' }}>
+                                    Kesehatan</option>
+                                <option value="lingkungan"
+                                    {{ request('jenis_kegiatan') == 'lingkungan' ? 'selected' : '' }}>Lingkungan</option>
+                                <option value="infrastruktur"
+                                    {{ request('jenis_kegiatan') == 'infrastruktur' ? 'selected' : '' }}>Infrastruktur
+                                </option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label for="tanggal_dari">Tanggal Dari</label>
+                            <input type="date" name="tanggal_dari" id="tanggal_dari"
+                                value="{{ request('tanggal_dari') }}" class="filter-input">
+                        </div>
+                        <div class="filter-group">
+                            <label for="tanggal_sampai">Tanggal Sampai</label>
+                            <input type="date" name="tanggal_sampai" id="tanggal_sampai"
+                                value="{{ request('tanggal_sampai') }}" class="filter-input">
+                        </div>
+                        <div class="filter-group">
+                            <button type="submit" class="filter-btn">
+                                <i class="fas fa-search"></i>
+                                Filter
+                            </button>
+                            <a href="{{ route('informasi-desa') }}" class="reset-btn">
+                                <i class="fas fa-undo"></i>
+                                Reset
+                            </a>
                         </div>
                     </div>
-                </div>
-                <div class="gallery-item">
-                    <img src="https://images.unsplash.com/photo-1441974231531-c6227db76b6e?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80"
-                        alt="Hutan Desa">
-                    <div class="gallery-overlay">
-                        <div class="gallery-title">Hutan Konservasi</div>
-                        <div class="gallery-description">Area konservasi yang menjadi paru-paru hijau desa</div>
+                </form>
+            </div>
+
+            <!-- Gallery Grid -->
+            <div class="gallery-grid">
+                @forelse($kegiatanDesa as $kegiatan)
+                    <div class="gallery-item" data-kegiatan="{{ $kegiatan->id }}">
+                        @if ($kegiatan->file_path)
+                            <img src="{{ asset('storage/kegiatanDesa/' . $kegiatan->file_path) }}"
+                                alt="{{ $kegiatan->judul_kegiatan }}"
+                                onerror="this.src='https://images.unsplash.com/photo-1582213782179-e0d53f98f2ca?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80'">
+                        @else
+                            <img src="https://images.unsplash.com/photo-1582213782179-e0d53f98f2ca?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80"
+                                alt="{{ $kegiatan->judul_kegiatan }}">
+                        @endif
+
+                        <div class="gallery-overlay">
+                            <div class="gallery-meta">
+                                <span class="gallery-category">{{ ucfirst($kegiatan->jenis_kegiatan) }}</span>
+                                <span class="gallery-date">
+                                    <i class="fas fa-calendar"></i>
+                                    {{ \Carbon\Carbon::parse($kegiatan->tanggal_kegiatan)->format('d M Y') }}
+                                </span>
+                            </div>
+                            <div class="gallery-title">{{ $kegiatan->judul_kegiatan }}</div>
+                            <div class="gallery-description">
+                                {{ Str::limit($kegiatan->deskripsi_kegiatan, 100) }}
+                            </div>
+                            <div class="gallery-location">
+                                <i class="fas fa-map-marker-alt"></i>
+                                {{ $kegiatan->lokasi_kegiatan }}
+                            </div>
+                            <div class="gallery-pic">
+                                <i class="fas fa-user"></i>
+                                {{ $kegiatan->penanggung_jawab }}
+                            </div>
+                        </div>
+                    </div>
+                @empty
+                    <div class="empty-state">
+                        <div class="empty-icon">
+                            <i class="fas fa-image"></i>
+                        </div>
+                        <h3>Tidak ada kegiatan ditemukan</h3>
+                        <p>Belum ada kegiatan yang sesuai dengan filter yang dipilih.</p>
+                    </div>
+                @endforelse
+            </div>
+
+            <!-- Pagination -->
+            @if ($kegiatanDesa->hasPages())
+                <div class="gallery-pagination">
+                    <div class="pagination-wrapper">
+                        {{-- Previous Page Link --}}
+                        @if ($kegiatanDesa->onFirstPage())
+                            <span class="pagination-btn disabled">
+                                <i class="fas fa-chevron-left"></i>
+                                Sebelumnya
+                            </span>
+                        @else
+                            <a href="{{ $kegiatanDesa->appends(request()->query())->previousPageUrl() }}"
+                                class="pagination-btn">
+                                <i class="fas fa-chevron-left"></i>
+                                Sebelumnya
+                            </a>
+                        @endif
+
+                        {{-- Pagination Elements --}}
+                        <div class="pagination-numbers">
+                            @foreach ($kegiatanDesa->appends(request()->query())->getUrlRange(1, $kegiatanDesa->lastPage()) as $page => $url)
+                                @if ($page == $kegiatanDesa->currentPage())
+                                    <span class="pagination-number active">{{ $page }}</span>
+                                @else
+                                    <a href="{{ $url }}" class="pagination-number">{{ $page }}</a>
+                                @endif
+                            @endforeach
+                        </div>
+
+                        {{-- Next Page Link --}}
+                        @if ($kegiatanDesa->hasMorePages())
+                            <a href="{{ $kegiatanDesa->appends(request()->query())->nextPageUrl() }}"
+                                class="pagination-btn">
+                                Selanjutnya
+                                <i class="fas fa-chevron-right"></i>
+                            </a>
+                        @else
+                            <span class="pagination-btn disabled">
+                                Selanjutnya
+                                <i class="fas fa-chevron-right"></i>
+                            </span>
+                        @endif
+                    </div>
+
+                    <!-- Pagination Info -->
+                    <div class="pagination-info">
+                        Menampilkan {{ $kegiatanDesa->firstItem() ?? 0 }} - {{ $kegiatanDesa->lastItem() ?? 0 }}
+                        dari {{ $kegiatanDesa->total() }} kegiatan
                     </div>
                 </div>
-                <div class="gallery-item">
-                    <img src="https://images.unsplash.com/photo-1582213782179-e0d53f98f2ca?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80"
-                        alt="Balai Desa">
-                    <div class="gallery-overlay">
-                        <div class="gallery-title">Balai Desa</div>
-                        <div class="gallery-description">Pusat pemerintahan dan kegiatan masyarakat desa</div>
+            @endif
+        </div>
+    </section>
+
+    <!-- Enhanced Gallery Modal -->
+    <div id="galleryModal" class="gallery-modal">
+        <div class="modal-content">
+            <span class="modal-close">&times;</span>
+            <div class="modal-image-container">
+                <img id="modalImage" src="" alt="">
+            </div>
+            <div class="modal-info">
+                <div class="modal-header">
+                    <h3 id="modalTitle"></h3>
+                    <div class="modal-meta">
+                        <span id="modalCategory" class="modal-category"></span>
+                        <span id="modalDate" class="modal-date"></span>
                     </div>
                 </div>
-                <div class="gallery-item">
-                    <img src="https://images.unsplash.com/photo-1559827260-dc66d52bef19?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80"
-                        alt="Pasar Tradisional">
-                    <div class="gallery-overlay">
-                        <div class="gallery-title">Pasar Tradisional</div>
-                        <div class="gallery-description">Pusat perdagangan dan interaksi ekonomi masyarakat</div>
-                    </div>
-                </div>
-                <div class="gallery-item">
-                    <img src="https://images.unsplash.com/photo-1560472354-b33ff0c44a43?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80"
-                        alt="Jalan Desa">
-                    <div class="gallery-overlay">
-                        <div class="gallery-title">Infrastruktur Jalan</div>
-                        <div class="gallery-description">Akses jalan yang menghubungkan antar dusun</div>
-                    </div>
-                </div>
-                <div class="gallery-item">
-                    <img src="https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80"
-                        alt="Kegiatan Masyarakat">
-                    <div class="gallery-overlay">
-                        <div class="gallery-title">Kegiatan Gotong Royong</div>
-                        <div class="gallery-description">Tradisi gotong royong yang masih kuat di masyarakat</div>
+                <div class="modal-body">
+                    <p id="modalDescription"></p>
+                    <div class="modal-details">
+                        <div class="detail-item">
+                            <i class="fas fa-map-marker-alt"></i>
+                            <span id="modalLocation"></span>
+                        </div>
+                        <div class="detail-item">
+                            <i class="fas fa-user"></i>
+                            <span id="modalPic"></span>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-    </section>
+    </div>
 
     <!-- Facilities Section -->
     <section class="facilities-section">
@@ -365,6 +492,414 @@
             section.style.transform = 'translateY(30px)';
             section.style.transition = 'opacity 0.8s ease, transform 0.8s ease';
             sectionObserver.observe(section);
+        });
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // Intersection Observer for animations
+            const observerOptionsEnhanced = {
+                threshold: 0.1,
+                rootMargin: '0px 0px -50px 0px'
+            };
+
+            const observerEnhanced = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.style.opacity = '1';
+                        entry.target.style.transform = 'translateY(0)';
+                    }
+                });
+            }, observerOptionsEnhanced);
+
+            // Apply initial styles and observe elements
+            document.querySelectorAll('.gallery-item, .filter-container, .gallery-pagination').forEach((element,
+                index) => {
+                element.style.opacity = '0';
+                element.style.transform = 'translateY(50px)';
+                element.style.transition =
+                    `opacity 0.6s ease ${index * 0.1}s, transform 0.6s ease ${index * 0.1}s`;
+                observerEnhanced.observe(element);
+            });
+
+            // Enhanced Gallery Modal
+            const modal = document.getElementById('galleryModal');
+            const modalImage = document.getElementById('modalImage');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalCategory = document.getElementById('modalCategory');
+            const modalDate = document.getElementById('modalDate');
+            const modalDescription = document.getElementById('modalDescription');
+            const modalLocation = document.getElementById('modalLocation');
+            const modalPic = document.getElementById('modalPic');
+            const closeModal = document.querySelector('.modal-close');
+
+            // Gallery item click handlers
+            document.querySelectorAll('.gallery-item').forEach(item => {
+                item.addEventListener('click', function() {
+                    const kegiatanId = this.dataset.kegiatan;
+
+                    // Get data from the clicked item
+                    const img = this.querySelector('img');
+                    const title = this.querySelector('.gallery-title').textContent;
+                    const category = this.querySelector('.gallery-category').textContent;
+                    const date = this.querySelector('.gallery-date').textContent.trim();
+                    const description = this.querySelector('.gallery-description').textContent;
+                    const location = this.querySelector('.gallery-location').textContent.trim();
+                    const pic = this.querySelector('.gallery-pic').textContent.trim();
+
+                    // Populate modal with data
+                    modalImage.src = img.src;
+                    modalImage.alt = title;
+                    modalTitle.textContent = title;
+                    modalCategory.textContent = category;
+                    modalDate.textContent = date;
+                    modalDescription.textContent = description;
+                    modalLocation.textContent = location;
+                    modalPic.textContent = pic;
+
+                    // Show modal with animation
+                    modal.style.display = 'block';
+                    document.body.style.overflow = 'hidden';
+
+                    // Add entrance animation
+                    const modalContent = modal.querySelector('.modal-content');
+                    modalContent.style.animation = 'modalSlideIn 0.4s ease';
+                });
+            });
+
+            // Close modal handlers
+            closeModal.addEventListener('click', closeModalHandler);
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) {
+                    closeModalHandler();
+                }
+            });
+
+            // Close modal with ESC key
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && modal.style.display === 'block') {
+                    closeModalHandler();
+                }
+            });
+
+            function closeModalHandler() {
+                const modalContent = modal.querySelector('.modal-content');
+                modalContent.style.animation = 'modalSlideOut 0.3s ease';
+
+                setTimeout(() => {
+                    modal.style.display = 'none';
+                    document.body.style.overflow = 'auto';
+                }, 300);
+            }
+
+            // Add modal slide out animation
+            const style = document.createElement('style');
+            style.textContent = `
+        @keyframes modalSlideOut {
+            from {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+            to {
+                opacity: 0;
+                transform: translateY(-50px) scale(0.9);
+            }
+        }
+    `;
+            document.head.appendChild(style);
+
+            // Enhanced Filter Functionality
+            const filterForm = document.getElementById('filterForm');
+            const filterInputs = filterForm.querySelectorAll('select, input');
+
+            // Auto-submit form when filter changes (optional)
+            filterInputs.forEach(input => {
+                input.addEventListener('change', function() {
+                    // Add loading animation
+                    const filterBtn = filterForm.querySelector('.filter-btn');
+                    const originalText = filterBtn.innerHTML;
+                    filterBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memfilter...';
+                    filterBtn.disabled = true;
+
+                    // Submit form after short delay for better UX
+                    setTimeout(() => {
+                        filterForm.submit();
+                    }, 500);
+                });
+            });
+
+            // Smooth scroll to gallery when pagination is clicked
+            document.querySelectorAll('.pagination-btn, .pagination-number').forEach(link => {
+                link.addEventListener('click', function(e) {
+                    // Add loading state
+                    if (!this.classList.contains('disabled') && !this.classList.contains(
+                        'active')) {
+                        const gallerySection = document.querySelector('.gallery-section');
+
+                        // Smooth scroll to gallery section
+                        setTimeout(() => {
+                            gallerySection.scrollIntoView({
+                                behavior: 'smooth',
+                                block: 'start'
+                            });
+                        }, 100);
+                    }
+                });
+            });
+
+            // Gallery item hover effects
+            document.querySelectorAll('.gallery-item').forEach(item => {
+                item.addEventListener('mouseenter', function() {
+                    this.style.zIndex = '10';
+                });
+
+                item.addEventListener('mouseleave', function() {
+                    this.style.zIndex = '1';
+                });
+            });
+
+            // Loading animation for images
+            document.querySelectorAll('.gallery-item img').forEach(img => {
+                img.addEventListener('load', function() {
+                    this.style.opacity = '1';
+                });
+
+                img.addEventListener('error', function() {
+                    this.style.opacity = '0.7';
+                    this.parentElement.classList.add('image-error');
+                });
+
+                // Set initial opacity
+                img.style.opacity = '0';
+                img.style.transition = 'opacity 0.3s ease';
+            });
+
+            // Search functionality enhancement
+            function debounce(func, wait) {
+                let timeout;
+                return function executedFunction(...args) {
+                    const later = () => {
+                        clearTimeout(timeout);
+                        func(...args);
+                    };
+                    clearTimeout(timeout);
+                    timeout = setTimeout(later, wait);
+                };
+            }
+
+            // Enhanced date filter validation
+            const tanggalDari = document.getElementById('tanggal_dari');
+            const tanggalSampai = document.getElementById('tanggal_sampai');
+
+            if (tanggalDari && tanggalSampai) {
+                tanggalDari.addEventListener('change', function() {
+                    if (tanggalSampai.value && this.value > tanggalSampai.value) {
+                        tanggalSampai.value = this.value;
+                    }
+                    tanggalSampai.min = this.value;
+                });
+
+                tanggalSampai.addEventListener('change', function() {
+                    if (tanggalDari.value && this.value < tanggalDari.value) {
+                        tanggalDari.value = this.value;
+                    }
+                    tanggalDari.max = this.value;
+                });
+            }
+
+            // Progressive image loading
+            const imageObserver = new IntersectionObserver((entries, observer) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const img = entry.target;
+                        img.src = img.dataset.src || img.src;
+                        img.classList.remove('lazy');
+                        observer.unobserve(img);
+                    }
+                });
+            });
+
+            document.querySelectorAll('.gallery-item img').forEach(img => {
+                imageObserver.observe(img);
+            });
+
+            // Keyboard navigation for gallery
+            let currentImageIndex = -1;
+            const galleryItems = document.querySelectorAll('.gallery-item');
+
+            document.addEventListener('keydown', function(e) {
+                if (modal.style.display === 'block') {
+                    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                        e.preventDefault();
+
+                        if (currentImageIndex === -1) {
+                            // Find current image index
+                            const currentSrc = modalImage.src;
+                            galleryItems.forEach((item, index) => {
+                                const img = item.querySelector('img');
+                                if (img.src === currentSrc) {
+                                    currentImageIndex = index;
+                                }
+                            });
+                        }
+
+                        if (e.key === 'ArrowLeft' && currentImageIndex > 0) {
+                            currentImageIndex--;
+                        } else if (e.key === 'ArrowRight' && currentImageIndex < galleryItems.length - 1) {
+                            currentImageIndex++;
+                        }
+
+                        // Update modal with new image
+                        if (currentImageIndex >= 0 && currentImageIndex < galleryItems.length) {
+                            const newItem = galleryItems[currentImageIndex];
+                            newItem.click();
+                        }
+                    }
+                }
+            });
+
+            // Touch/swipe support for mobile
+            let touchStartX = 0;
+            let touchEndX = 0;
+
+            modal.addEventListener('touchstart', function(e) {
+                touchStartX = e.changedTouches[0].screenX;
+            });
+
+            modal.addEventListener('touchend', function(e) {
+                touchEndX = e.changedTouches[0].screenX;
+                handleSwipe();
+            });
+
+            function handleSwipe() {
+                const swipeThreshold = 50;
+                const diff = touchStartX - touchEndX;
+
+                if (Math.abs(diff) > swipeThreshold) {
+                    if (diff > 0) {
+                        // Swipe left - next image
+                        const event = new KeyboardEvent('keydown', {
+                            key: 'ArrowRight'
+                        });
+                        document.dispatchEvent(event);
+                    } else {
+                        // Swipe right - previous image
+                        const event = new KeyboardEvent('keydown', {
+                            key: 'ArrowLeft'
+                        });
+                        document.dispatchEvent(event);
+                    }
+                }
+            }
+
+            // Add loading states for better UX
+            function addLoadingState(element, originalContent) {
+                element.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memuat...';
+                element.disabled = true;
+
+                return function removeLoadingState() {
+                    element.innerHTML = originalContent;
+                    element.disabled = false;
+                };
+            }
+
+            // Gallery statistics (optional feature)
+            function updateGalleryStats() {
+                const totalItems = document.querySelectorAll('.gallery-item').length;
+                const statsElement = document.querySelector('.gallery-stats');
+
+                if (statsElement) {
+                    statsElement.textContent = `Menampilkan ${totalItems} kegiatan`;
+                }
+            }
+
+            // Call stats update
+            updateGalleryStats();
+
+            // Lazy loading for better performance
+            const lazyLoadOptions = {
+                root: null,
+                rootMargin: '50px',
+                threshold: 0.1
+            };
+
+            const lazyImageObserver = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const img = entry.target;
+                        const placeholder = img.parentElement.querySelector('.image-placeholder');
+
+                        img.addEventListener('load', () => {
+                            img.style.opacity = '1';
+                            if (placeholder) {
+                                placeholder.style.opacity = '0';
+                                setTimeout(() => placeholder.remove(), 300);
+                            }
+                        });
+
+                        lazyImageObserver.unobserve(img);
+                    }
+                });
+            }, lazyLoadOptions);
+
+            // Apply lazy loading to all gallery images
+            document.querySelectorAll('.gallery-item img').forEach(img => {
+                lazyImageObserver.observe(img);
+            });
+
+            // Accessibility improvements
+            document.querySelectorAll('.gallery-item').forEach((item, index) => {
+                item.setAttribute('tabindex', '0');
+                item.setAttribute('role', 'button');
+                item.setAttribute('aria-label',
+                    `Lihat detail kegiatan ${item.querySelector('.gallery-title').textContent}`);
+
+                // Keyboard support
+                item.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        this.click();
+                    }
+                });
+            });
+
+            // Focus management for modal
+            modal.addEventListener('shown', function() {
+                closeModal.focus();
+            });
+
+            // Announcement for screen readers
+            const announcer = document.createElement('div');
+            announcer.setAttribute('aria-live', 'polite');
+            announcer.setAttribute('aria-atomic', 'true');
+            announcer.className = 'sr-only';
+            document.body.appendChild(announcer);
+
+            function announce(message) {
+                announcer.textContent = message;
+                setTimeout(() => {
+                    announcer.textContent = '';
+                }, 1000);
+            }
+
+            // Error handling for failed image loads
+            document.querySelectorAll('.gallery-item img').forEach(img => {
+                img.addEventListener('error', function() {
+                    const item = this.parentElement;
+                    item.classList.add('image-error');
+
+                    // Create error placeholder
+                    const errorDiv = document.createElement('div');
+                    errorDiv.className = 'image-error-placeholder';
+                    errorDiv.innerHTML = `
+                <i class="fas fa-image"></i>
+                <span>Gambar tidak dapat dimuat</span>
+            `;
+
+                    this.style.display = 'none';
+                    item.appendChild(errorDiv);
+                });
+            });
+
+            console.log('Enhanced Gallery initialized successfully');
         });
     </script>
 @endsection

@@ -14,6 +14,7 @@ use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\APBDesExport;
 use App\Models\PimpinanOrganisasiDesa;
 use App\Models\AnggotaOrganisasiDesa;
+use App\Models\KegiatanDesa;
 use App\Models\ReportPublicationData;
 use Illuminate\Http\JsonResponse;
 
@@ -31,9 +32,31 @@ class PageRouting extends Controller
         ]);
     }
 
-    public function informasiDesa()
+    public function informasiDesa(Request $request)
     {
-        return view('landingPage.components.informasiDesa');
+        // Build query for kegiatan desa
+        $query = KegiatanDesa::query();
+
+        // Apply filters
+        if ($request->filled('jenis_kegiatan')) {
+            $query->where('jenis_kegiatan', $request->jenis_kegiatan);
+        }
+
+        if ($request->filled('tanggal_dari')) {
+            $query->whereDate('tanggal_kegiatan', '>=', $request->tanggal_dari);
+        }
+
+        if ($request->filled('tanggal_sampai')) {
+            $query->whereDate('tanggal_kegiatan', '<=', $request->tanggal_sampai);
+        }
+
+        // Order by latest activity date
+        $query->orderBy('tanggal_kegiatan', 'desc');
+
+        // Paginate with 3 items per page
+        $kegiatanDesa = $query->paginate(3)->withQueryString();
+
+        return view('landingPage.components.informasiDesa', compact('kegiatanDesa'));
     }
 
     public function agendaDesa()

@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\PageRouting;
 use App\Http\Controllers\JDIHController;
+use App\Http\Controllers\KegiatanDesaController;
 use App\Http\Controllers\ReportPublicationController;
 use Illuminate\Support\Facades\Log;
 
@@ -10,6 +11,36 @@ Route::get('/', [PageRouting::class, 'halamanUtama'])->name('home');
 
 // Informasi Desa Route
 Route::get('/informasiDesa', [PageRouting::class, 'informasiDesa'])->name('informasi-desa');
+Route::group(['prefix' => 'api/kegiatan-desa'], function () {
+    // Get activity detail
+    Route::get('/detail/{id}', [KegiatanDesaController::class, 'getKegiatanDetail'])
+        ->name('api.kegiatan-desa.detail');
+
+    // Get available activity types
+    Route::get('/jenis-kegiatan', [KegiatanDesaController::class, 'getJenisKegiatan'])
+        ->name('api.kegiatan-desa.jenis');
+
+    // Search activities
+    Route::get('/search', [KegiatanDesaController::class, 'searchKegiatan'])
+        ->name('api.kegiatan-desa.search');
+
+    // Get statistics
+    Route::get('/statistik', [KegiatanDesaController::class, 'getStatistik'])
+        ->name('api.kegiatan-desa.statistik');
+
+    // Export activities
+    Route::get('/export', [KegiatanDesaController::class, 'exportKegiatan'])
+        ->name('api.kegiatan-desa.export');
+});
+
+// Alternative routes if you prefer different naming
+Route::group(['as' => 'village.'], function () {
+    Route::get('/village/information', [KegiatanDesaController::class, 'informasiDesa'])
+        ->name('information');
+
+    Route::get('/village/activities/{id}', [KegiatanDesaController::class, 'getKegiatanDetail'])
+        ->name('activity.detail');
+});
 
 // Agenda Desa
 Route::get('/agenda-desa', [PageRouting::class, 'agendaDesa'])->name('agenda-desa');
