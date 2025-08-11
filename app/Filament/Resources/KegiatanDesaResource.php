@@ -25,7 +25,7 @@ class KegiatanDesaResource extends Resource
             ->schema([
                 Forms\Components\TextInput::make('judul_kegiatan')
                     ->maxLength(255),
-                Forms\Components\TextInput::make('jenis_kegiatan')
+                Forms\Components\Select::make('jenis_kegiatan')
                     ->required()
                     ->label(__('Jenis Kegiatan'))
                     ->options([
