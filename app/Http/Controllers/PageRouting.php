@@ -16,6 +16,7 @@ use App\Models\PimpinanOrganisasiDesa;
 use App\Models\AnggotaOrganisasiDesa;
 use App\Models\KegiatanDesa;
 use App\Models\ReportPublicationData;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 
 class PageRouting extends Controller
@@ -56,7 +57,273 @@ class PageRouting extends Controller
         // Paginate with 3 items per page
         $kegiatanDesa = $query->paginate(3)->withQueryString();
 
+        // Check if this is an AJAX request
+        if ($request->ajax() || $request->wantsJson()) {
+            try {
+                // Return only the gallery section data with proper view path
+                $html = view('landingPage.components.partials.gallery-content', compact('kegiatanDesa'))->render();
+
+                return response()->json([
+                    'success' => true,
+                    'html' => $html,
+                    'pagination' => [
+                        'current_page' => $kegiatanDesa->currentPage(),
+                        'last_page' => $kegiatanDesa->lastPage(),
+                        'per_page' => $kegiatanDesa->perPage(),
+                        'total' => $kegiatanDesa->total(),
+                        'has_more_pages' => $kegiatanDesa->hasMorePages(),
+                        'from' => $kegiatanDesa->firstItem(),
+                        'to' => $kegiatanDesa->lastItem()
+                    ],
+                    'filters' => [
+                        'jenis_kegiatan' => $request->jenis_kegiatan,
+                        'tanggal_dari' => $request->tanggal_dari,
+                        'tanggal_sampai' => $request->tanggal_sampai
+                    ],
+                    'stats' => [
+                        'total_kegiatan' => $kegiatanDesa->total(),
+                        'filtered_count' => $kegiatanDesa->count()
+                    ]
+                ]);
+            } catch (\Exception $e) {
+                Log::error('Error rendering gallery view: ' . $e->getMessage());
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Terjadi kesalahan saat memuat galeri',
+                    'error' => config('app.debug') ? $e->getMessage() : null
+                ], 500);
+            }
+        }
+
+        // Return normal view for non-AJAX requests
         return view('landingPage.components.informasiDesa', compact('kegiatanDesa'));
+    }
+
+    public function galleryFilter(Request $request)
+    {
+        try {
+            // Build query for kegiatan desa
+            $query = KegiatanDesa::query();
+
+            // Apply filters
+            if ($request->filled('jenis_kegiatan')) {
+                $query->where('jenis_kegiatan', $request->jenis_kegiatan);
+            }
+
+            if ($request->filled('tanggal_dari')) {
+                $query->whereDate('tanggal_kegiatan', '>=', $request->tanggal_dari);
+            }
+
+            if ($request->filled('tanggal_sampai')) {
+                $query->whereDate('tanggal_kegiatan', '<=', $request->tanggal_sampai);
+            }
+
+            // Order by latest activity date
+            $query->orderBy('tanggal_kegiatan', 'desc');
+
+            // Paginate with 3 items per page
+            $kegiatanDesa = $query->paginate(3)->withQueryString();
+
+            // Render the view with proper error handling
+            try {
+                $html = view('landingPage.components.partials.gallery-content', compact('kegiatanDesa'))->render();
+            } catch (\Exception $e) {
+                Log::error('Error rendering gallery view: ' . $e->getMessage());
+                throw new \Exception('Template gallery tidak ditemukan');
+            }
+
+            // Return JSON response for AJAX
+            return response()->json([
+                'success' => true,
+                'html' => $html,
+                'pagination' => [
+                    'current_page' => $kegiatanDesa->currentPage(),
+                    'last_page' => $kegiatanDesa->lastPage(),
+                    'per_page' => $kegiatanDesa->perPage(),
+                    'total' => $kegiatanDesa->total(),
+                    'has_more_pages' => $kegiatanDesa->hasMorePages(),
+                    'from' => $kegiatanDesa->firstItem(),
+                    'to' => $kegiatanDesa->lastItem()
+                ],
+                'filters' => [
+                    'jenis_kegiatan' => $request->jenis_kegiatan,
+                    'tanggal_dari' => $request->tanggal_dari,
+                    'tanggal_sampai' => $request->tanggal_sampai
+                ],
+                'stats' => [
+                    'total_kegiatan' => $kegiatanDesa->total(),
+                    'filtered_count' => $kegiatanDesa->count(),
+                    'available_types' => KegiatanDesa::distinct('jenis_kegiatan')->pluck('jenis_kegiatan')->filter()
+                ],
+                'message' => 'Gallery berhasil dimuat'
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error in gallery filter: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan saat memuat galeri',
+                'error' => config('app.debug') ? $e->getMessage() : null
+            ], 500);
+        }
+    }
+
+    /**
+     * Alternative AJAX gallery method with more specific endpoint
+     */
+    public function ajaxGallery(Request $request)
+    {
+        // Validate request
+        $request->validate([
+            'jenis_kegiatan' => 'nullable|string|in:sosial,ekonomi,pendidikan,kesehatan,lingkungan,infrastruktur',
+            'tanggal_dari' => 'nullable|date',
+            'tanggal_sampai' => 'nullable|date|after_or_equal:tanggal_dari',
+            'page' => 'nullable|integer|min:1'
+        ]);
+
+        try {
+            // Build query
+            $query = KegiatanDesa::query();
+
+            // Apply filters with validation
+            if ($request->filled('jenis_kegiatan')) {
+                $query->where('jenis_kegiatan', $request->jenis_kegiatan);
+            }
+
+            if ($request->filled('tanggal_dari')) {
+                $query->whereDate('tanggal_kegiatan', '>=', $request->tanggal_dari);
+            }
+
+            if ($request->filled('tanggal_sampai')) {
+                $query->whereDate('tanggal_kegiatan', '<=', $request->tanggal_sampai);
+            }
+
+            // Add search functionality if provided
+            if ($request->filled('search')) {
+                $searchTerm = $request->search;
+                $query->where(function ($q) use ($searchTerm) {
+                    $q->where('judul_kegiatan', 'like', "%{$searchTerm}%")
+                        ->orWhere('deskripsi_kegiatan', 'like', "%{$searchTerm}%")
+                        ->orWhere('lokasi_kegiatan', 'like', "%{$searchTerm}%")
+                        ->orWhere('penanggung_jawab', 'like', "%{$searchTerm}%");
+                });
+            }
+
+            // Order by latest activity date
+            $query->orderBy('tanggal_kegiatan', 'desc');
+
+            // Paginate
+            $kegiatanDesa = $query->paginate(3)->withQueryString();
+
+            // Transform data for better frontend handling
+            $transformedData = $kegiatanDesa->map(function ($kegiatan) {
+                return [
+                    'id' => $kegiatan->id,
+                    'judul_kegiatan' => $kegiatan->judul_kegiatan,
+                    'jenis_kegiatan' => $kegiatan->jenis_kegiatan,
+                    'deskripsi_kegiatan' => $kegiatan->deskripsi_kegiatan,
+                    'tanggal_kegiatan' => \Carbon\Carbon::parse($kegiatan->tanggal_kegiatan)->format('d M Y'),
+                    'tanggal_kegiatan_raw' => $kegiatan->tanggal_kegiatan,
+                    'lokasi_kegiatan' => $kegiatan->lokasi_kegiatan,
+                    'penanggung_jawab' => $kegiatan->penanggung_jawab,
+                    'file_path' => $kegiatan->file_path ? url('/storage/' . $kegiatan->file_path) : null,
+                    'image_url' => $kegiatan->file_path
+                        ? url('/storage/' . $kegiatan->file_path)
+                        : 'https://images.unsplash.com/photo-1582213782179-e0d53f98f2ca?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80'
+                ];
+            });
+
+            // Render the view with proper error handling
+            try {
+                $html = view('landingPage.components.partials.gallery-content', compact('kegiatanDesa'))->render();
+            } catch (\Exception $e) {
+                Log::error('Error rendering gallery view in ajaxGallery: ' . $e->getMessage());
+                throw new \Exception('Template gallery tidak ditemukan');
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $transformedData,
+                'html' => $html,
+                'pagination' => [
+                    'current_page' => $kegiatanDesa->currentPage(),
+                    'last_page' => $kegiatanDesa->lastPage(),
+                    'per_page' => $kegiatanDesa->perPage(),
+                    'total' => $kegiatanDesa->total(),
+                    'has_more_pages' => $kegiatanDesa->hasMorePages(),
+                    'from' => $kegiatanDesa->firstItem(),
+                    'to' => $kegiatanDesa->lastItem(),
+                    'has_pages' => $kegiatanDesa->hasPages()
+                ],
+                'filters' => [
+                    'jenis_kegiatan' => $request->jenis_kegiatan,
+                    'tanggal_dari' => $request->tanggal_dari,
+                    'tanggal_sampai' => $request->tanggal_sampai,
+                    'search' => $request->search
+                ],
+                'stats' => [
+                    'total_kegiatan' => $kegiatanDesa->total(),
+                    'filtered_count' => $kegiatanDesa->count(),
+                    'available_types' => KegiatanDesa::distinct('jenis_kegiatan')->pluck('jenis_kegiatan')->filter()
+                ],
+                'message' => 'Data galeri berhasil dimuat'
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Data yang dikirim tidak valid',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('Error in AJAX gallery: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan saat memuat galeri',
+                'error' => config('app.debug') ? $e->getMessage() : null
+            ], 500);
+        }
+    }
+
+    /**
+     * Get gallery statistics for dashboard/info display
+     */
+    public function getGalleryStats()
+    {
+        try {
+            $totalKegiatan = KegiatanDesa::count();
+            $kegiatanBulanIni = KegiatanDesa::whereMonth('tanggal_kegiatan', Carbon::now()->month)
+                ->whereYear('tanggal_kegiatan', Carbon::now()->year)
+                ->count();
+
+            $kegiatanPerJenis = KegiatanDesa::selectRaw('jenis_kegiatan, COUNT(*) as total')
+                ->groupBy('jenis_kegiatan')
+                ->pluck('total', 'jenis_kegiatan');
+
+            $kegiatanTerbaru = KegiatanDesa::orderBy('tanggal_kegiatan', 'desc')
+                ->limit(5)
+                ->get(['id', 'judul_kegiatan', 'tanggal_kegiatan', 'jenis_kegiatan']);
+
+            return response()->json([
+                'success' => true,
+                'stats' => [
+                    'total_kegiatan' => $totalKegiatan,
+                    'kegiatan_bulan_ini' => $kegiatanBulanIni,
+                    'kegiatan_per_jenis' => $kegiatanPerJenis,
+                    'kegiatan_terbaru' => $kegiatanTerbaru
+                ]
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error getting gallery stats: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan saat mengambil statistik'
+            ], 500);
+        }
     }
 
     public function agendaDesa()

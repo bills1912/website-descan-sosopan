@@ -105,7 +105,6 @@
         </div>
     </section>
 
-    <!-- Gallery Section -->
     <!-- Enhanced Gallery Section with Pagination and Filter -->
     <section class="gallery-section">
         <div class="container">
@@ -158,104 +157,12 @@
                 </form>
             </div>
 
-            <!-- Gallery Grid -->
-            <div class="gallery-grid">
-                {{-- @dd($kegiatanDesa[0]) --}}
-                @forelse($kegiatanDesa as $kegiatan)
-                    <div class="gallery-item" data-kegiatan="{{ $kegiatan->id }}">
-                        @if ($kegiatan->file_path)
-                            <img src="{{ url('/storage/' . $kegiatan->file_path) }}"
-                                alt="{{ $kegiatan->judul_kegiatan }}"
-                                onerror="this.src='https://images.unsplash.com/photo-1582213782179-e0d53f98f2ca?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80'">
-                        @else
-                            <img src="https://images.unsplash.com/photo-1582213782179-e0d53f98f2ca?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80"
-                                alt="{{ $kegiatan->judul_kegiatan }}">
-                        @endif
-
-                        <div class="gallery-overlay">
-                            <div class="gallery-meta">
-                                <span class="gallery-category">{{ ucfirst($kegiatan->jenis_kegiatan) }}</span>
-                                <span class="gallery-date">
-                                    <i class="fas fa-calendar"></i>
-                                    {{ \Carbon\Carbon::parse($kegiatan->tanggal_kegiatan)->format('d M Y') }}
-                                </span>
-                            </div>
-                            <div class="gallery-title">{{ $kegiatan->judul_kegiatan }}</div>
-                            <div class="gallery-description">
-                                {{ Str::limit($kegiatan->deskripsi_kegiatan, 100) }}
-                            </div>
-                            <div class="gallery-location">
-                                <i class="fas fa-map-marker-alt"></i>
-                                {{ $kegiatan->lokasi_kegiatan }}
-                            </div>
-                            <div class="gallery-pic">
-                                <i class="fas fa-user"></i>
-                                {{ $kegiatan->penanggung_jawab }}
-                            </div>
-                        </div>
-                    </div>
-                @empty
-                    <div class="empty-state">
-                        <div class="empty-icon">
-                            <i class="fas fa-image"></i>
-                        </div>
-                        <h3>Tidak ada kegiatan ditemukan</h3>
-                        <p>Belum ada kegiatan yang sesuai dengan filter yang dipilih.</p>
-                    </div>
-                @endforelse
+            <!-- Gallery Grid Container -->
+            <div id="gallery-container">
+                @include('landingPage.components.partials.gallery-content', [
+                    'kegiatanDesa' => $kegiatanDesa,
+                ])
             </div>
-
-            <!-- Pagination -->
-            @if ($kegiatanDesa->hasPages())
-                <div class="gallery-pagination">
-                    <div class="pagination-wrapper">
-                        {{-- Previous Page Link --}}
-                        @if ($kegiatanDesa->onFirstPage())
-                            <span class="pagination-btn disabled">
-                                <i class="fas fa-chevron-left"></i>
-                                Sebelumnya
-                            </span>
-                        @else
-                            <a href="{{ $kegiatanDesa->appends(request()->query())->previousPageUrl() }}"
-                                class="pagination-btn">
-                                <i class="fas fa-chevron-left"></i>
-                                Sebelumnya
-                            </a>
-                        @endif
-
-                        {{-- Pagination Elements --}}
-                        <div class="pagination-numbers">
-                            @foreach ($kegiatanDesa->appends(request()->query())->getUrlRange(1, $kegiatanDesa->lastPage()) as $page => $url)
-                                @if ($page == $kegiatanDesa->currentPage())
-                                    <span class="pagination-number active">{{ $page }}</span>
-                                @else
-                                    <a href="{{ $url }}" class="pagination-number">{{ $page }}</a>
-                                @endif
-                            @endforeach
-                        </div>
-
-                        {{-- Next Page Link --}}
-                        @if ($kegiatanDesa->hasMorePages())
-                            <a href="{{ $kegiatanDesa->appends(request()->query())->nextPageUrl() }}"
-                                class="pagination-btn">
-                                Selanjutnya
-                                <i class="fas fa-chevron-right"></i>
-                            </a>
-                        @else
-                            <span class="pagination-btn disabled">
-                                Selanjutnya
-                                <i class="fas fa-chevron-right"></i>
-                            </span>
-                        @endif
-                    </div>
-
-                    <!-- Pagination Info -->
-                    <div class="pagination-info">
-                        Menampilkan {{ $kegiatanDesa->firstItem() ?? 0 }} - {{ $kegiatanDesa->lastItem() ?? 0 }}
-                        dari {{ $kegiatanDesa->total() }} kegiatan
-                    </div>
-                </div>
-            @endif
         </div>
     </section>
 
@@ -496,411 +403,659 @@
         });
 
         document.addEventListener('DOMContentLoaded', function() {
-            // Intersection Observer for animations
-            const observerOptionsEnhanced = {
-                threshold: 0.1,
-                rootMargin: '0px 0px -50px 0px'
+            const filterForm = document.getElementById('filterForm');
+            const galleryContainer = document.getElementById('gallery-container');
+            const resetBtn = document.querySelector('.reset-btn');
+            const filterBtn = document.querySelector('.filter-btn');
+            const gallerySection = document.querySelector('.gallery-section');
+
+            // Configuration
+            const config = {
+                ajaxUrl: '/ajax/informasi-desa/gallery',
+                debounceDelay: 500,
+                animationDelay: 100,
+                loadingTimeout: 10000 // 10 seconds timeout
             };
 
-            const observerEnhanced = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        entry.target.style.opacity = '1';
-                        entry.target.style.transform = 'translateY(0)';
+            // State management
+            let currentFilters = {};
+            let isLoading = false;
+            let loadingTimeout = null;
+
+            // Loading state management
+            function showLoading() {
+                if (isLoading) return;
+                isLoading = true;
+
+                const loadingHTML = `
+            <div class="gallery-loading">
+                <div class="loading-spinner"></div>
+                <div class="loading-text">Memuat galeri kegiatan...</div>
+            </div>
+        `;
+                galleryContainer.innerHTML = loadingHTML;
+
+                // Set timeout for loading
+                loadingTimeout = setTimeout(() => {
+                    if (isLoading) {
+                        showError('Waktu tunggu habis. Silakan coba lagi.');
+                        isLoading = false;
+                    }
+                }, config.loadingTimeout);
+            }
+
+            function hideLoading() {
+                isLoading = false;
+                if (loadingTimeout) {
+                    clearTimeout(loadingTimeout);
+                    loadingTimeout = null;
+                }
+            }
+
+            // Error state management
+            function showError(message = 'Terjadi kesalahan saat memuat data') {
+                const errorHTML = `
+            <div class="gallery-grid">
+                <div class="empty-state" style="grid-column: 1 / -1;">
+                    <div class="empty-icon" style="background: linear-gradient(135deg, #ff6b6b 0%, #ff8e53 100%);">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <h3>Gagal Memuat Galeri</h3>
+                    <p>${message}</p>
+                    <div style="margin-top: 1rem;">
+                        <button onclick="retryLoad()" class="filter-btn" style="margin-right: 0.5rem;">
+                            <i class="fas fa-refresh"></i>
+                            Coba Lagi
+                        </button>
+                        <button onclick="location.reload()" class="reset-btn">
+                            <i class="fas fa-home"></i>
+                            Muat Ulang Halaman
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+                galleryContainer.innerHTML = errorHTML;
+            }
+
+            // Success state with no data
+            function showEmptyState(message = 'Tidak ada kegiatan yang sesuai dengan filter') {
+                const emptyHTML = `
+            <div class="gallery-grid">
+                <div class="empty-state" style="grid-column: 1 / -1;">
+                    <div class="empty-icon">
+                        <i class="fas fa-search"></i>
+                    </div>
+                    <h3>Tidak Ada Data</h3>
+                    <p>${message}</p>
+                    <button onclick="clearAllFilters()" class="filter-btn" style="margin-top: 1rem;">
+                        <i class="fas fa-times-circle"></i>
+                        Hapus Semua Filter
+                    </button>
+                </div>
+            </div>
+        `;
+                galleryContainer.innerHTML = emptyHTML;
+            }
+
+            // Main AJAX function untuk load gallery
+            async function loadGallery(params = {}, showLoadingState = true) {
+                try {
+                    if (showLoadingState) {
+                        showLoading();
+                    }
+
+                    // Update current filters
+                    currentFilters = {
+                        ...params
+                    };
+
+                    // Build URL dengan parameters
+                    const searchParams = new URLSearchParams();
+                    Object.keys(params).forEach(key => {
+                        if (params[key]) {
+                            searchParams.append(key, params[key]);
+                        }
+                    });
+
+                    // Add CSRF token if available
+                    const token = document.querySelector('meta[name="csrf-token"]');
+                    const headers = {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                    };
+
+                    if (token) {
+                        headers['X-CSRF-TOKEN'] = token.content;
+                    }
+
+                    // Fetch data dari dedicated AJAX endpoint
+                    const response = await fetch(`${config.ajaxUrl}?${searchParams.toString()}`, {
+                        method: 'GET',
+                        headers: headers
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        // Update gallery container dengan HTML yang diterima
+                        galleryContainer.innerHTML = data.html;
+
+                        // Re-initialize gallery items
+                        initializeGalleryItems();
+
+                        // Animate new items
+                        animateGalleryItems();
+
+                        // Update URL without page reload
+                        updateUrl(params);
+
+                        // Update filter summary - FIXED: Check if data.stats exists
+                        if (data.stats && data.filters) {
+                            updateFilterSummary(data.stats, data.filters);
+                        } else {
+                            // Create mock stats if not provided
+                            const mockStats = {
+                                total_kegiatan: data.pagination ? data.pagination.total : 0
+                            };
+                            updateFilterSummary(mockStats, data.filters || {});
+                        }
+
+                        // Announce to screen readers
+                        const totalItems = data.pagination ? data.pagination.total : 0;
+                        announce(`Galeri berhasil diperbarui. Menampilkan ${totalItems} kegiatan.`);
+
+                        console.log('Gallery loaded successfully:', data);
+
+                    } else {
+                        throw new Error(data.message || 'Response tidak valid dari server');
+                    }
+
+                    hideLoading();
+
+                } catch (error) {
+                    console.error('Error loading gallery:', error);
+                    hideLoading();
+
+                    if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                        showError('Tidak dapat terhubung ke server. Periksa koneksi internet Anda.');
+                    } else {
+                        showError(error.message);
+                    }
+                }
+            }
+
+            // Update URL without page reload
+            function updateUrl(params) {
+                const url = new URL(window.location.href);
+                const searchParams = new URLSearchParams();
+
+                Object.keys(params).forEach(key => {
+                    if (params[key]) {
+                        searchParams.append(key, params[key]);
                     }
                 });
-            }, observerOptionsEnhanced);
 
-            // Apply initial styles and observe elements
-            document.querySelectorAll('.gallery-item, .filter-container, .gallery-pagination').forEach((element,
-                index) => {
-                element.style.opacity = '0';
-                element.style.transform = 'translateY(50px)';
-                element.style.transition =
-                    `opacity 0.6s ease ${index * 0.1}s, transform 0.6s ease ${index * 0.1}s`;
-                observerEnhanced.observe(element);
-            });
+                const newUrl = `${url.pathname}?${searchParams.toString()}`;
 
-            // Enhanced Gallery Modal
-            const modal = document.getElementById('galleryModal');
-            const modalImage = document.getElementById('modalImage');
-            const modalTitle = document.getElementById('modalTitle');
-            const modalCategory = document.getElementById('modalCategory');
-            const modalDate = document.getElementById('modalDate');
-            const modalDescription = document.getElementById('modalDescription');
-            const modalLocation = document.getElementById('modalLocation');
-            const modalPic = document.getElementById('modalPic');
-            const closeModal = document.querySelector('.modal-close');
+                // Only update if URL actually changed
+                if (newUrl !== window.location.href) {
+                    history.pushState({
+                        filters: params
+                    }, '', newUrl);
+                }
+            }
 
-            // Gallery item click handlers
-            document.querySelectorAll('.gallery-item').forEach(item => {
-                item.addEventListener('click', function() {
-                    const kegiatanId = this.dataset.kegiatan;
+            // FIXED: Update filter summary display with better error handling
+            function updateFilterSummary(stats, filters) {
+                try {
+                    let summaryElement = document.querySelector('.filter-summary');
 
-                    // Get data from the clicked item
-                    const img = this.querySelector('img');
-                    const title = this.querySelector('.gallery-title').textContent;
-                    const category = this.querySelector('.gallery-category').textContent;
-                    const date = this.querySelector('.gallery-date').textContent.trim();
-                    const description = this.querySelector('.gallery-description').textContent;
-                    const location = this.querySelector('.gallery-location').textContent.trim();
-                    const pic = this.querySelector('.gallery-pic').textContent.trim();
+                    // Create summary element if it doesn't exist
+                    if (!summaryElement) {
+                        summaryElement = document.createElement('div');
+                        summaryElement.className = 'filter-summary';
 
-                    // Populate modal with data
+                        // Find the best insertion point
+                        const container = galleryContainer.parentNode;
+                        if (container) {
+                            container.insertBefore(summaryElement, galleryContainer);
+                        } else {
+                            // Fallback: insert after filter form
+                            const filterContainer = filterForm.closest('.gallery-filter');
+                            if (filterContainer && filterContainer.parentNode) {
+                                filterContainer.parentNode.insertBefore(summaryElement, filterContainer
+                                .nextSibling);
+                            } else {
+                                // Last resort: append to gallery section
+                                gallerySection.appendChild(summaryElement);
+                            }
+                        }
+                    }
+
+                    const activeFilters = Object.keys(filters).filter(key => filters[key]);
+
+                    if (activeFilters.length > 0) {
+                        const filterTags = activeFilters.map(key => {
+                            const value = filters[key];
+                            const label = getFilterLabel(key, value);
+                            return `
+                        <span class="filter-tag" data-filter="${key}">
+                            ${label}
+                            <button type="button" class="remove-filter" data-filter="${key}" aria-label="Hapus filter ${label}">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </span>
+                    `;
+                        }).join('');
+
+                        summaryElement.innerHTML = `
+                    <div class="filter-summary-content">
+                        <span class="filter-summary-label">Filter aktif:</span>
+                        <div class="filter-tags">${filterTags}</div>
+                        <button type="button" class="clear-all-filters" onclick="clearAllFilters()">
+                            <i class="fas fa-times-circle"></i>
+                            Hapus Semua
+                        </button>
+                    </div>
+                `;
+
+                        // Add event listeners for individual filter removal
+                        summaryElement.querySelectorAll('.remove-filter').forEach(btn => {
+                            btn.addEventListener('click', function() {
+                                const filterKey = this.dataset.filter;
+                                removeFilter(filterKey);
+                            });
+                        });
+
+                        summaryElement.style.display = 'block';
+                    } else {
+                        summaryElement.style.display = 'none';
+                    }
+                } catch (error) {
+                    console.warn('Error updating filter summary:', error);
+                    // Continue without filter summary if there's an error
+                }
+            }
+
+            // Get human-readable filter label
+            function getFilterLabel(key, value) {
+                const labels = {
+                    jenis_kegiatan: {
+                        'sosial': 'Sosial',
+                        'ekonomi': 'Ekonomi',
+                        'pendidikan': 'Pendidikan',
+                        'kesehatan': 'Kesehatan',
+                        'lingkungan': 'Lingkungan',
+                        'infrastruktur': 'Infrastruktur'
+                    }
+                };
+
+                if (key === 'jenis_kegiatan' && labels.jenis_kegiatan[value]) {
+                    return labels.jenis_kegiatan[value];
+                } else if (key === 'tanggal_dari') {
+                    return `Dari: ${formatDate(value)}`;
+                } else if (key === 'tanggal_sampai') {
+                    return `Sampai: ${formatDate(value)}`;
+                }
+
+                return `${key}: ${value}`;
+            }
+
+            // Format date for display
+            function formatDate(dateString) {
+                try {
+                    const date = new Date(dateString);
+                    return date.toLocaleDateString('id-ID', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric'
+                    });
+                } catch (error) {
+                    return dateString;
+                }
+            }
+
+            // Remove individual filter
+            function removeFilter(filterKey) {
+                const formElement = filterForm.querySelector(`[name="${filterKey}"]`);
+                if (formElement) {
+                    formElement.value = '';
+                }
+
+                const newFilters = {
+                    ...currentFilters
+                };
+                delete newFilters[filterKey];
+
+                loadGallery(newFilters);
+            }
+
+            // Clear all filters function (global for onclick handlers)
+            window.clearAllFilters = function() {
+                if (filterForm) {
+                    filterForm.reset();
+                }
+                loadGallery({});
+            };
+
+            // Retry load function (global for onclick handlers)  
+            window.retryLoad = function() {
+                loadGallery(currentFilters);
+            };
+
+            // Initialize gallery items (modal, hover effects, etc.)
+            function initializeGalleryItems() {
+                const galleryItems = document.querySelectorAll('.gallery-item');
+
+                galleryItems.forEach((item, index) => {
+                    // Set initial state for animation
+                    item.style.opacity = '0';
+                    item.style.transform = 'translateY(20px)';
+
+                    // Re-attach click handlers for modal
+                    item.addEventListener('click', function() {
+                        openGalleryModal(this);
+                    });
+
+                    // Re-attach hover effects
+                    item.addEventListener('mouseenter', function() {
+                        this.style.zIndex = '10';
+                    });
+
+                    item.addEventListener('mouseleave', function() {
+                        this.style.zIndex = '1';
+                    });
+
+                    // Re-attach keyboard support
+                    item.setAttribute('tabindex', '0');
+                    item.setAttribute('role', 'button');
+                    item.setAttribute('aria-label',
+                        `Lihat detail kegiatan ${item.querySelector('.gallery-title')?.textContent || ''}`
+                    );
+
+                    item.addEventListener('keydown', function(e) {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            this.click();
+                        }
+                    });
+                });
+
+                // Re-initialize pagination click handlers
+                const paginationLinks = document.querySelectorAll(
+                    '.pagination-btn:not(.disabled), .pagination-number:not(.active)');
+                paginationLinks.forEach(link => {
+                    link.addEventListener('click', function(e) {
+                        e.preventDefault();
+
+                        const url = new URL(this.href);
+                        const searchParams = new URLSearchParams(url.search);
+                        const params = Object.fromEntries(searchParams.entries());
+
+                        loadGallery(params);
+
+                        // Smooth scroll to gallery
+                        gallerySection.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'start'
+                        });
+                    });
+                });
+            }
+
+            // Animate gallery items entrance
+            function animateGalleryItems() {
+                const galleryItems = document.querySelectorAll('.gallery-item');
+
+                galleryItems.forEach((item, index) => {
+                    setTimeout(() => {
+                        item.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+                        item.style.opacity = '1';
+                        item.style.transform = 'translateY(0)';
+                    }, index * config.animationDelay);
+                });
+            }
+
+            // Enhanced filter form handler
+            if (filterForm) {
+                filterForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+
+                    const formData = new FormData(this);
+                    const params = Object.fromEntries(formData.entries());
+
+                    // Remove empty values
+                    Object.keys(params).forEach(key => {
+                        if (!params[key]) {
+                            delete params[key];
+                        }
+                    });
+
+                    // Update filter button state
+                    const originalText = filterBtn.innerHTML;
+                    filterBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memfilter...';
+                    filterBtn.disabled = true;
+
+                    loadGallery(params).finally(() => {
+                        filterBtn.innerHTML = originalText;
+                        filterBtn.disabled = false;
+                    });
+                });
+
+                // Enhanced auto-submit with better debouncing
+                const filterInputs = filterForm.querySelectorAll('select, input[type="date"]');
+                filterInputs.forEach(input => {
+                    let timeout;
+
+                    input.addEventListener('input', function() {
+                        clearTimeout(timeout);
+                        timeout = setTimeout(() => {
+                            if (this.value !== this.dataset.lastValue) {
+                                this.dataset.lastValue = this.value;
+                                filterForm.dispatchEvent(new Event('submit'));
+                            }
+                        }, config.debounceDelay);
+                    });
+
+                    input.addEventListener('change', function() {
+                        clearTimeout(timeout);
+                        if (this.value !== this.dataset.lastValue) {
+                            this.dataset.lastValue = this.value;
+                            filterForm.dispatchEvent(new Event('submit'));
+                        }
+                    });
+
+                    // Store initial value
+                    input.dataset.lastValue = input.value;
+                });
+            }
+
+            // Enhanced reset button handler
+            if (resetBtn) {
+                resetBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+
+                    // Reset form fields
+                    if (filterForm) {
+                        filterForm.reset();
+                        // Reset stored values
+                        filterForm.querySelectorAll('select, input').forEach(input => {
+                            input.dataset.lastValue = input.value;
+                        });
+                    }
+
+                    // Update reset button state
+                    const originalText = this.innerHTML;
+                    this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mereset...';
+                    this.disabled = true;
+
+                    // Load gallery without any filters
+                    loadGallery({}).finally(() => {
+                        this.innerHTML = originalText;
+                        this.disabled = false;
+                    });
+
+                    // Announce reset action
+                    announce('Semua filter telah dihapus. Menampilkan semua kegiatan.');
+                });
+            }
+
+            // Modal functions
+            function openGalleryModal(galleryItem) {
+                const modal = document.getElementById('galleryModal');
+                if (!modal) return;
+
+                const modalImage = document.getElementById('modalImage');
+                const modalTitle = document.getElementById('modalTitle');
+                const modalCategory = document.getElementById('modalCategory');
+                const modalDate = document.getElementById('modalDate');
+                const modalDescription = document.getElementById('modalDescription');
+                const modalLocation = document.getElementById('modalLocation');
+                const modalPic = document.getElementById('modalPic');
+
+                // Get data from the clicked item
+                const img = galleryItem.querySelector('img');
+                const title = galleryItem.querySelector('.gallery-title')?.textContent?.trim() || '';
+                const category = galleryItem.querySelector('.gallery-category')?.textContent?.trim() || '';
+                const date = galleryItem.querySelector('.gallery-date')?.textContent?.trim() || '';
+                const description = galleryItem.querySelector('.gallery-description')?.textContent?.trim() || '';
+                const location = galleryItem.querySelector('.gallery-location')?.textContent?.trim() || '';
+                const pic = galleryItem.querySelector('.gallery-pic')?.textContent?.trim() || '';
+
+                // Populate modal with data
+                if (modalImage && img) {
                     modalImage.src = img.src;
                     modalImage.alt = title;
-                    modalTitle.textContent = title;
-                    modalCategory.textContent = category;
-                    modalDate.textContent = date;
-                    modalDescription.textContent = description;
-                    modalLocation.textContent = location;
-                    modalPic.textContent = pic;
-
-                    // Show modal with animation
-                    modal.style.display = 'block';
-                    document.body.style.overflow = 'hidden';
-
-                    // Add entrance animation
-                    const modalContent = modal.querySelector('.modal-content');
-                    modalContent.style.animation = 'modalSlideIn 0.4s ease';
-                });
-            });
-
-            // Close modal handlers
-            closeModal.addEventListener('click', closeModalHandler);
-            modal.addEventListener('click', function(e) {
-                if (e.target === modal) {
-                    closeModalHandler();
+                    modalImage.onerror = function() {
+                        this.src =
+                            'https://images.unsplash.com/photo-1582213782179-e0d53f98f2ca?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80';
+                    };
                 }
-            });
+
+                if (modalTitle) modalTitle.textContent = title;
+                if (modalCategory) modalCategory.textContent = category;
+                if (modalDate) modalDate.textContent = date;
+                if (modalDescription) modalDescription.textContent = description;
+                if (modalLocation) modalLocation.textContent = location;
+                if (modalPic) modalPic.textContent = pic;
+
+                // Show modal
+                modal.style.display = 'block';
+                document.body.style.overflow = 'hidden';
+
+                // Add entrance animation
+                const modalContent = modal.querySelector('.modal-content');
+                if (modalContent) {
+                    modalContent.style.animation = 'modalSlideIn 0.4s ease';
+                }
+
+                // Focus management for accessibility
+                const closeBtn = modal.querySelector('.modal-close');
+                if (closeBtn) {
+                    closeBtn.focus();
+                }
+
+                // Announce modal opening
+                announce(`Modal dibuka untuk kegiatan: ${title}`);
+            }
+
+            // Modal close functionality
+            const modal = document.getElementById('galleryModal');
+            const closeModal = document.querySelector('.modal-close');
+
+            if (closeModal) {
+                closeModal.addEventListener('click', closeModalHandler);
+            }
+
+            if (modal) {
+                modal.addEventListener('click', function(e) {
+                    if (e.target === modal) {
+                        closeModalHandler();
+                    }
+                });
+            }
 
             // Close modal with ESC key
             document.addEventListener('keydown', function(e) {
-                if (e.key === 'Escape' && modal.style.display === 'block') {
+                if (e.key === 'Escape' && modal && modal.style.display === 'block') {
                     closeModalHandler();
                 }
             });
 
             function closeModalHandler() {
+                if (!modal) return;
+
                 const modalContent = modal.querySelector('.modal-content');
-                modalContent.style.animation = 'modalSlideOut 0.3s ease';
+                if (modalContent) {
+                    modalContent.style.animation = 'modalSlideOut 0.3s ease';
+                }
 
                 setTimeout(() => {
                     modal.style.display = 'none';
                     document.body.style.overflow = 'auto';
                 }, 300);
+
+                announce('Modal ditutup');
             }
 
-            // Add modal slide out animation
-            const style = document.createElement('style');
-            style.textContent = `
-        @keyframes modalSlideOut {
-            from {
-                opacity: 1;
-                transform: translateY(0) scale(1);
-            }
-            to {
-                opacity: 0;
-                transform: translateY(-50px) scale(0.9);
-            }
-        }
-    `;
-            document.head.appendChild(style);
-
-            // Enhanced Filter Functionality
-            const filterForm = document.getElementById('filterForm');
-            const filterInputs = filterForm.querySelectorAll('select, input');
-
-            // Auto-submit form when filter changes (optional)
-            filterInputs.forEach(input => {
-                input.addEventListener('change', function() {
-                    // Add loading animation
-                    const filterBtn = filterForm.querySelector('.filter-btn');
-                    const originalText = filterBtn.innerHTML;
-                    filterBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memfilter...';
-                    filterBtn.disabled = true;
-
-                    // Submit form after short delay for better UX
-                    setTimeout(() => {
-                        filterForm.submit();
-                    }, 500);
-                });
-            });
-
-            // Smooth scroll to gallery when pagination is clicked
-            document.querySelectorAll('.pagination-btn, .pagination-number').forEach(link => {
-                link.addEventListener('click', function(e) {
-                    // Add loading state
-                    if (!this.classList.contains('disabled') && !this.classList.contains(
-                        'active')) {
-                        const gallerySection = document.querySelector('.gallery-section');
-
-                        // Smooth scroll to gallery section
-                        setTimeout(() => {
-                            gallerySection.scrollIntoView({
-                                behavior: 'smooth',
-                                block: 'start'
-                            });
-                        }, 100);
-                    }
-                });
-            });
-
-            // Gallery item hover effects
-            document.querySelectorAll('.gallery-item').forEach(item => {
-                item.addEventListener('mouseenter', function() {
-                    this.style.zIndex = '10';
-                });
-
-                item.addEventListener('mouseleave', function() {
-                    this.style.zIndex = '1';
-                });
-            });
-
-            // Loading animation for images
-            document.querySelectorAll('.gallery-item img').forEach(img => {
-                img.addEventListener('load', function() {
-                    this.style.opacity = '1';
-                });
-
-                img.addEventListener('error', function() {
-                    this.style.opacity = '0.7';
-                    this.parentElement.classList.add('image-error');
-                });
-
-                // Set initial opacity
-                img.style.opacity = '0';
-                img.style.transition = 'opacity 0.3s ease';
-            });
-
-            // Search functionality enhancement
-            function debounce(func, wait) {
-                let timeout;
-                return function executedFunction(...args) {
-                    const later = () => {
-                        clearTimeout(timeout);
-                        func(...args);
-                    };
-                    clearTimeout(timeout);
-                    timeout = setTimeout(later, wait);
-                };
-            }
-
-            // Enhanced date filter validation
-            const tanggalDari = document.getElementById('tanggal_dari');
-            const tanggalSampai = document.getElementById('tanggal_sampai');
-
-            if (tanggalDari && tanggalSampai) {
-                tanggalDari.addEventListener('change', function() {
-                    if (tanggalSampai.value && this.value > tanggalSampai.value) {
-                        tanggalSampai.value = this.value;
-                    }
-                    tanggalSampai.min = this.value;
-                });
-
-                tanggalSampai.addEventListener('change', function() {
-                    if (tanggalDari.value && this.value < tanggalDari.value) {
-                        tanggalDari.value = this.value;
-                    }
-                    tanggalDari.max = this.value;
-                });
-            }
-
-            // Progressive image loading
-            const imageObserver = new IntersectionObserver((entries, observer) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        const img = entry.target;
-                        img.src = img.dataset.src || img.src;
-                        img.classList.remove('lazy');
-                        observer.unobserve(img);
-                    }
-                });
-            });
-
-            document.querySelectorAll('.gallery-item img').forEach(img => {
-                imageObserver.observe(img);
-            });
-
-            // Keyboard navigation for gallery
-            let currentImageIndex = -1;
-            const galleryItems = document.querySelectorAll('.gallery-item');
-
-            document.addEventListener('keydown', function(e) {
-                if (modal.style.display === 'block') {
-                    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-                        e.preventDefault();
-
-                        if (currentImageIndex === -1) {
-                            // Find current image index
-                            const currentSrc = modalImage.src;
-                            galleryItems.forEach((item, index) => {
-                                const img = item.querySelector('img');
-                                if (img.src === currentSrc) {
-                                    currentImageIndex = index;
-                                }
-                            });
-                        }
-
-                        if (e.key === 'ArrowLeft' && currentImageIndex > 0) {
-                            currentImageIndex--;
-                        } else if (e.key === 'ArrowRight' && currentImageIndex < galleryItems.length - 1) {
-                            currentImageIndex++;
-                        }
-
-                        // Update modal with new image
-                        if (currentImageIndex >= 0 && currentImageIndex < galleryItems.length) {
-                            const newItem = galleryItems[currentImageIndex];
-                            newItem.click();
-                        }
-                    }
-                }
-            });
-
-            // Touch/swipe support for mobile
-            let touchStartX = 0;
-            let touchEndX = 0;
-
-            modal.addEventListener('touchstart', function(e) {
-                touchStartX = e.changedTouches[0].screenX;
-            });
-
-            modal.addEventListener('touchend', function(e) {
-                touchEndX = e.changedTouches[0].screenX;
-                handleSwipe();
-            });
-
-            function handleSwipe() {
-                const swipeThreshold = 50;
-                const diff = touchStartX - touchEndX;
-
-                if (Math.abs(diff) > swipeThreshold) {
-                    if (diff > 0) {
-                        // Swipe left - next image
-                        const event = new KeyboardEvent('keydown', {
-                            key: 'ArrowRight'
-                        });
-                        document.dispatchEvent(event);
-                    } else {
-                        // Swipe right - previous image
-                        const event = new KeyboardEvent('keydown', {
-                            key: 'ArrowLeft'
-                        });
-                        document.dispatchEvent(event);
-                    }
-                }
-            }
-
-            // Add loading states for better UX
-            function addLoadingState(element, originalContent) {
-                element.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memuat...';
-                element.disabled = true;
-
-                return function removeLoadingState() {
-                    element.innerHTML = originalContent;
-                    element.disabled = false;
-                };
-            }
-
-            // Gallery statistics (optional feature)
-            function updateGalleryStats() {
-                const totalItems = document.querySelectorAll('.gallery-item').length;
-                const statsElement = document.querySelector('.gallery-stats');
-
-                if (statsElement) {
-                    statsElement.textContent = `Menampilkan ${totalItems} kegiatan`;
-                }
-            }
-
-            // Call stats update
-            updateGalleryStats();
-
-            // Lazy loading for better performance
-            const lazyLoadOptions = {
-                root: null,
-                rootMargin: '50px',
-                threshold: 0.1
-            };
-
-            const lazyImageObserver = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        const img = entry.target;
-                        const placeholder = img.parentElement.querySelector('.image-placeholder');
-
-                        img.addEventListener('load', () => {
-                            img.style.opacity = '1';
-                            if (placeholder) {
-                                placeholder.style.opacity = '0';
-                                setTimeout(() => placeholder.remove(), 300);
-                            }
-                        });
-
-                        lazyImageObserver.unobserve(img);
-                    }
-                });
-            }, lazyLoadOptions);
-
-            // Apply lazy loading to all gallery images
-            document.querySelectorAll('.gallery-item img').forEach(img => {
-                lazyImageObserver.observe(img);
-            });
-
-            // Accessibility improvements
-            document.querySelectorAll('.gallery-item').forEach((item, index) => {
-                item.setAttribute('tabindex', '0');
-                item.setAttribute('role', 'button');
-                item.setAttribute('aria-label',
-                    `Lihat detail kegiatan ${item.querySelector('.gallery-title').textContent}`);
-
-                // Keyboard support
-                item.addEventListener('keydown', function(e) {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        this.click();
-                    }
-                });
-            });
-
-            // Focus management for modal
-            modal.addEventListener('shown', function() {
-                closeModal.focus();
-            });
-
-            // Announcement for screen readers
-            const announcer = document.createElement('div');
-            announcer.setAttribute('aria-live', 'polite');
-            announcer.setAttribute('aria-atomic', 'true');
-            announcer.className = 'sr-only';
-            document.body.appendChild(announcer);
-
+            // Accessibility announcer
             function announce(message) {
+                const announcer = document.querySelector('.sr-only[aria-live]') || createAnnouncer();
                 announcer.textContent = message;
                 setTimeout(() => {
                     announcer.textContent = '';
                 }, 1000);
             }
 
-            // Error handling for failed image loads
-            document.querySelectorAll('.gallery-item img').forEach(img => {
-                img.addEventListener('error', function() {
-                    const item = this.parentElement;
-                    item.classList.add('image-error');
+            function createAnnouncer() {
+                const announcer = document.createElement('div');
+                announcer.setAttribute('aria-live', 'polite');
+                announcer.setAttribute('aria-atomic', 'true');
+                announcer.className = 'sr-only';
+                announcer.style.cssText =
+                    'position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;';
+                document.body.appendChild(announcer);
+                return announcer;
+            }
 
-                    // Create error placeholder
-                    const errorDiv = document.createElement('div');
-                    errorDiv.className = 'image-error-placeholder';
-                    errorDiv.innerHTML = `
-                <i class="fas fa-image"></i>
-                <span>Gambar tidak dapat dimuat</span>
-            `;
+            // Handle browser back/forward buttons
+            window.addEventListener('popstate', function(e) {
+                if (e.state && e.state.filters) {
+                    // Restore form values
+                    const filters = e.state.filters;
+                    Object.keys(filters).forEach(key => {
+                        const input = filterForm.querySelector(`[name="${key}"]`);
+                        if (input) {
+                            input.value = filters[key];
+                            input.dataset.lastValue = filters[key];
+                        }
+                    });
 
-                    this.style.display = 'none';
-                    item.appendChild(errorDiv);
-                });
+                    // Reload gallery with restored filters
+                    loadGallery(filters, false);
+                } else {
+                    // No state, reset to default
+                    if (filterForm) {
+                        filterForm.reset();
+                    }
+                    loadGallery({}, false);
+                }
             });
 
-            console.log('Enhanced Gallery initialized successfully');
+            // Initialize on page load
+            initializeGalleryItems();
+
+            // Store initial state
+            const initialParams = new URLSearchParams(window.location.search);
+            currentFilters = Object.fromEntries(initialParams.entries());
+
+            console.log('Enhanced Gallery AJAX functionality initialized with config:', config);
         });
     </script>
 @endsection

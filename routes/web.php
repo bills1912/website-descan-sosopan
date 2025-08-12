@@ -42,6 +42,14 @@ Route::group(['as' => 'village.'], function () {
         ->name('activity.detail');
 });
 
+// AJAX route for gallery filter and pagination
+Route::get('/api/gallery/filter', [PageRouting::class, 'galleryFilter'])->name('api.gallery.filter');
+
+// Alternative AJAX route with more specific naming
+Route::group(['prefix' => 'ajax'], function () {
+    Route::get('/informasi-desa/gallery', [PageRouting::class, 'ajaxGallery'])->name('ajax.informasi-desa.gallery');
+});
+
 // Agenda Desa
 Route::get('/agenda-desa', [PageRouting::class, 'agendaDesa'])->name('agenda-desa');
 
